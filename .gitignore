@@ -1,0 +1,28 @@
+# Go
+backend/bin/
+*.exe
+*.exe~
+*.test
+*.out
+vendor/
+
+# Node
+node_modules/
+dist/
+.env
+.env.local
+.env.*.local
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+
+# E2E artifacts (failure screenshots etc.)
+e2e/artifacts/
+
+# Keep these committed:
+# !go.sum
+# !package-lock.json
