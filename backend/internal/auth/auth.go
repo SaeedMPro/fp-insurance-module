@@ -1,7 +1,6 @@
-// Package auth handles password hashing and JWT issuance/verification for
-// interactive users (employees, reviewers, admins, auditors). System-to-system
-// access for the parent-system integration uses a separate API-key scheme,
-// implemented alongside the RBAC middleware in internal/api/middleware.
+// Package auth is a small leaf utility: password hashing and JWT
+// issuance/verification. It depends only on domain types; token policy
+// (who gets one, TTL, secret) belongs to the users service and config.
 package auth
 
 import (
@@ -12,7 +11,7 @@ import (
 	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
 
-	"insurance-module/internal/models"
+	"insurance-module/internal/domain"
 )
 
 var ErrInvalidToken = errors.New("auth: invalid or expired token")
@@ -26,24 +25,36 @@ func CheckPassword(hash, password string) bool {
 	return bcrypt.CompareHashAndPassword([]byte(hash), []byte(password)) == nil
 }
 
+// TokenSubject is the identity a token is issued for.
+type TokenSubject struct {
+	UserID   uuid.UUID
+	Username string
+	Role     domain.Role
+}
+
 // Claims are the JWT claims embedded in every access token.
 type Claims struct {
 	UserID   uuid.UUID   `json:"user_id"`
 	Username string      `json:"username"`
-	Role     models.Role `json:"role"`
+	Role     domain.Role `json:"role"`
 	jwt.RegisteredClaims
 }
 
-func GenerateToken(secret string, ttl time.Duration, user models.User) (string, error) {
+// Actor converts verified claims into the domain actor used by services.
+func (c *Claims) Actor() domain.Actor {
+	return domain.Actor{UserID: c.UserID, Username: c.Username, Role: c.Role}
+}
+
+func GenerateToken(secret string, ttl time.Duration, sub TokenSubject) (string, error) {
 	now := time.Now()
 	claims := Claims{
-		UserID:   user.ID,
-		Username: user.Username,
-		Role:     user.Role,
+		UserID:   sub.UserID,
+		Username: sub.Username,
+		Role:     sub.Role,
 		RegisteredClaims: jwt.RegisteredClaims{
 			IssuedAt:  jwt.NewNumericDate(now),
 			ExpiresAt: jwt.NewNumericDate(now.Add(ttl)),
-			Subject:   user.ID.String(),
+			Subject:   sub.UserID.String(),
 		},
 	}
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
@@ -52,7 +63,7 @@ func GenerateToken(secret string, ttl time.Duration, user models.User) (string, 
 
 func ParseToken(secret, tokenStr string) (*Claims, error) {
 	claims := &Claims{}
-	token, err := jwt.ParseWithClaims(tokenStr, claims, func(t *jwt.Token) (interface{}, error) {
+	token, err := jwt.ParseWithClaims(tokenStr, claims, func(t *jwt.Token) (any, error) {
 		if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, ErrInvalidToken
 		}

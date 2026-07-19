@@ -1,0 +1,34 @@
+# golangci-lint v2 configuration — kept intentionally small: high-signal linters
+# only, so CI failures always mean something worth fixing.
+version: "2"
+
+linters:
+  default: none
+  enable:
+    - errcheck      # unchecked errors
+    - govet         # go vet analyses
+    - ineffassign   # dead assignments
+    - staticcheck   # bug-class findings (includes gosimple/stylecheck in v2)
+    - unused        # unused symbols
+    - misspell      # comment/string typos
+    - gosec         # security smells (weak rand, injected strings, ...)
+    - noctx         # HTTP requests without context
+    - unconvert     # redundant conversions
+  settings:
+    gosec:
+      excludes:
+        - G104 # duplicate of errcheck
+  exclusions:
+    rules:
+      # Test helpers legitimately ignore some errors and use weak randomness.
+      - path: _test\.go
+        linters: [gosec, errcheck]
+
+formatters:
+  enable:
+    - gofmt
+    - goimports
+
+run:
+  timeout: 5m
+  tests: true

@@ -1,13 +1,12 @@
-// Command api is the Supplementary Insurance Module's HTTP server: it wires
-// config, the database connection, schema migrations, the domain services
-// (rule engine, workflow engine, audit trail), and the REST API router, then
-// serves it with a graceful shutdown on SIGINT/SIGTERM.
+// Command api is the Supplementary Insurance Module's HTTP server. It is the
+// composition boundary: config → migrations → store → services (internal/app)
+// → REST router, served with graceful shutdown on SIGINT/SIGTERM.
 package main
 
 import (
 	"context"
 	"errors"
-	"log"
+	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
@@ -16,41 +15,44 @@ import (
 
 	"github.com/joho/godotenv"
 
-	"insurance-module/internal/api"
-	"insurance-module/internal/audit"
-	"insurance-module/internal/config"
-	"insurance-module/internal/db"
-	"insurance-module/internal/reports"
-	"insurance-module/internal/ruleengine"
-	"insurance-module/internal/workflow"
+	"insurance-module/internal/app"
+	"insurance-module/internal/platform/config"
+	"insurance-module/internal/platform/database"
+	"insurance-module/internal/platform/logging"
+	"insurance-module/internal/storage/postgres"
+	transporthttp "insurance-module/internal/transport/http"
 )
 
 func main() {
 	_ = godotenv.Load()
-	cfg := config.Load()
-
-	if err := db.Migrate(cfg.DatabaseURL, cfg.MigrationsPath); err != nil {
-		log.Fatalf("migrate: %v", err)
-	}
-
-	gdb, err := db.Connect(cfg.DatabaseURL)
+	cfg, err := config.Load()
 	if err != nil {
-		log.Fatalf("connect db: %v", err)
+		slog.Error("invalid configuration", "error", err)
+		os.Exit(1)
+	}
+	logger := logging.Setup(cfg.IsProduction())
+
+	if err := database.Migrate(cfg.DatabaseURL, cfg.MigrationsPath); err != nil {
+		logger.Error("migrate failed", "error", err)
+		os.Exit(1)
 	}
 
-	rulesEngine := ruleengine.NewEngine(gdb)
-	auditSvc := audit.NewService(gdb)
-	workflowEngine := workflow.NewEngine(gdb, rulesEngine, auditSvc)
-	reportsSvc := reports.NewService(gdb)
+	store, err := postgres.Open(cfg.DatabaseURL)
+	if err != nil {
+		logger.Error("database connect failed", "error", err)
+		os.Exit(1)
+	}
 
-	router := api.NewRouter(api.Deps{
-		DB:       gdb,
-		Cfg:      cfg,
-		Rules:    rulesEngine,
-		Workflow: workflowEngine,
-		Audit:    auditSvc,
-		Reports:  reportsSvc,
+	services := app.Build(store, app.Options{
+		JWTSecret: cfg.JWTSecret,
+		JWTTTL:    cfg.JWTTTL,
 	})
+
+	router := transporthttp.NewRouter(transporthttp.Config{
+		JWTSecret:   cfg.JWTSecret,
+		CORSOrigins: cfg.CORSOrigins,
+		Logger:      logger,
+	}, services)
 
 	srv := &http.Server{
 		Addr:         ":" + cfg.HTTPPort,
@@ -61,9 +63,10 @@ func main() {
 	}
 
 	go func() {
-		log.Printf("insurance-module api listening on :%s (env=%s)", cfg.HTTPPort, cfg.Env)
+		logger.Info("api listening", "port", cfg.HTTPPort, "env", cfg.Env)
 		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-			log.Fatalf("listen: %v", err)
+			logger.Error("listen failed", "error", err)
+			os.Exit(1)
 		}
 	}()
 
@@ -74,6 +77,6 @@ func main() {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	if err := srv.Shutdown(ctx); err != nil {
-		log.Printf("graceful shutdown failed: %v", err)
+		logger.Warn("graceful shutdown failed", "error", err)
 	}
 }

@@ -25,7 +25,10 @@ services:
       postgres:
         condition: service_healthy
     environment:
-      APP_ENV: production
+      # The out-of-the-box compose stack is a demo/dev environment. Real
+      # deployments must set APP_ENV=production AND a strong JWT_SECRET —
+      # the backend refuses to boot in production with the dev fallback.
+      APP_ENV: ${APP_ENV:-development}
       HTTP_PORT: "8080"
       DATABASE_URL: postgres://insurance:insurance@postgres:5432/insurance?sslmode=disable
       JWT_SECRET: ${JWT_SECRET:-change-me-in-prod}

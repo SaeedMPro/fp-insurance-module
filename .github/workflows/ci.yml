@@ -1,0 +1,104 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+  schedule:
+    - cron: "30 2 * * *" # nightly E2E
+
+jobs:
+  backend:
+    name: Backend (lint, test)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: insurance
+          POSTGRES_PASSWORD: insurance
+          POSTGRES_DB: insurance
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U insurance -d insurance"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: backend/go.mod
+          cache-dependency-path: backend/go.sum
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v8
+        with:
+          working-directory: backend
+      - name: Migrate test database
+        run: |
+          go run -tags 'postgres' github.com/golang-migrate/migrate/v4/cmd/migrate@v4.19.1 \
+            -path migrations \
+            -database "postgres://insurance:insurance@localhost:5432/insurance?sslmode=disable" up
+      - name: Test (unit + integration)
+        env:
+          TEST_DATABASE_URL: postgres://insurance:insurance@localhost:5432/insurance?sslmode=disable
+        run: go test ./... -count=1
+
+  frontend:
+    name: Frontend (typecheck, lint, build)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run build   # tsc -b && vite build
+
+  docker:
+    name: Docker images build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build backend image
+        run: docker build backend
+      - name: Build frontend image
+        run: docker build frontend
+
+  e2e:
+    # The browser suite needs the full compose stack + Chrome; keep it off the
+    # commit critical path and run it nightly / on demand.
+    name: End-to-end (browser)
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule'
+    steps:
+      - uses: actions/checkout@v4
+      - name: Start stack
+        run: |
+          cd deploy
+          JWT_SECRET=ci-secret docker compose up -d --build
+          for i in $(seq 1 60); do
+            curl -sf http://localhost:8080/healthz && break; sleep 1; done
+      - name: Seed demo data
+        run: docker compose -f deploy/docker-compose.yml exec -T backend /app/seed
+      - name: Install Chrome
+        uses: browser-actions/setup-chrome@v1
+        id: chrome
+      - name: Run E2E
+        env:
+          CHROME_PATH: ${{ steps.chrome.outputs.chrome-path }}
+        run: cd e2e && npm ci && node e2e.mjs
+      - name: Upload failure artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-artifacts
+          path: e2e/artifacts/
