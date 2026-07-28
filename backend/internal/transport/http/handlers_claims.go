@@ -51,7 +51,7 @@ func (s *Server) handleCreateClaim(w http.ResponseWriter, r *http.Request) {
 		BeneficiaryType: req.BeneficiaryType,
 		DependentID:     dependentID,
 		ServiceTypeID:   serviceTypeID,
-		RequestedAmount: req.RequestedAmount,
+		RequestedAmount: domain.RialFromFloat(req.RequestedAmount),
 		ReceiptDate:     req.ReceiptDate,
 		Description:     req.Description,
 	})

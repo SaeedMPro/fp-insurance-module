@@ -67,9 +67,9 @@ type CoverageRule struct {
 	ID                uuid.UUID
 	PlanID            uuid.UUID
 	ServiceTypeID     uuid.UUID
-	CoveragePercent   float64
-	PerClaimCap       *float64
-	AnnualCap         *float64
+	CoveragePercent   Percent
+	PerClaimCap       *Rial
+	AnnualCap         *Rial
 	WaitingPeriodDays int
 	EligibleRelations []Relation
 	EffectiveFrom     time.Time
@@ -105,12 +105,12 @@ type Claim struct {
 	DependentID            *uuid.UUID
 	ServiceTypeID          uuid.UUID
 	PlanID                 uuid.UUID
-	RequestedAmount        float64
+	RequestedAmount        Rial
 	ReceiptDate            time.Time
 	Description            string
 	Status                 ClaimStatus
-	CoveragePercentApplied *float64
-	PayableAmount          *float64
+	CoveragePercentApplied *Percent
+	PayableAmount          *Rial
 	RejectionReason        string
 	SubmittedAt            *time.Time
 	ReviewedBy             *uuid.UUID
@@ -125,7 +125,7 @@ type Claim struct {
 type Payment struct {
 	ID               uuid.UUID
 	ClaimID          uuid.UUID
-	Amount           float64
+	Amount           Rial
 	PaymentReference string
 	Status           PaymentStatus
 	PaidAt           time.Time

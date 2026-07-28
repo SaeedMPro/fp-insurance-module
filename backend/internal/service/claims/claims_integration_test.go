@@ -62,7 +62,7 @@ func setup(t *testing.T, store *postgres.Store, svcs transporthttp.Services) fix
 	}
 }
 
-func newClaim(t *testing.T, store *postgres.Store, svcs transporthttp.Services, fx fixture, amount float64) domain.Claim {
+func newClaim(t *testing.T, store *postgres.Store, svcs transporthttp.Services, fx fixture, amount domain.Rial) domain.Claim {
 	t.Helper()
 	st, err := store.GetServiceTypeByCode(context.Background(), "outpatient_visit")
 	require.NoError(t, err)
@@ -95,7 +95,7 @@ func TestWorkflow_HappyPath_ApprovePaidClose(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, domain.ClaimApproved, after.Status)
 	require.NotNil(t, after.PayableAmount)
-	require.InDelta(t, 280000, *after.PayableAmount, 0.01) // 70% of 400,000 (seeded standard rule)
+	require.Equal(t, domain.Rial(280000), *after.PayableAmount) // 70% of 400,000 (seeded standard rule)
 
 	after, err = svcs.Claims.MarkPaid(ctx, fx.reviewerActor, claim.ID)
 	require.NoError(t, err)

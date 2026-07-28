@@ -74,16 +74,16 @@ func TestGoldenPricing(t *testing.T) {
 	got := make([]goldenCase, 0, len(cases))
 	for _, tc := range cases {
 		rule := domain.CoverageRule{
-			CoveragePercent: tc.CoveragePercent,
-			PerClaimCap:     tc.PerClaimCap,
-			AnnualCap:       tc.AnnualCap,
+			CoveragePercent: domain.PercentFromFloat(tc.CoveragePercent),
+			PerClaimCap:     domain.RialPtrFromFloatPtr(tc.PerClaimCap),
+			AnnualCap:       domain.RialPtrFromFloatPtr(tc.AnnualCap),
 		}
-		res := Compute(rule, tc.RequestedAmount, tc.UsedAnnual)
+		res := Compute(rule, domain.RialFromFloat(tc.RequestedAmount), domain.RialFromFloat(tc.UsedAnnual))
 		out := tc
-		out.WantPayable = res.PayableAmount
+		out.WantPayable = res.PayableAmount.Float()
 		out.WantCappedClaim = res.CappedByPerClaim
 		out.WantCappedAnnual = res.CappedByAnnualCap
-		out.WantRemainingCap = res.RemainingAnnualCapAfter
+		out.WantRemainingCap = domain.FloatPtrFromRialPtr(res.RemainingAnnualCapAfter)
 		got = append(got, out)
 	}
 

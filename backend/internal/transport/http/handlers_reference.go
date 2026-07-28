@@ -131,9 +131,9 @@ func (s *Server) handleCreateCoverageRule(w http.ResponseWriter, r *http.Request
 	rule, err := s.coverage.PublishRuleVersion(r.Context(), actor, coverage.PublishRuleInput{
 		PlanID:            planID,
 		ServiceTypeID:     serviceTypeID,
-		CoveragePercent:   req.CoveragePercent,
-		PerClaimCap:       req.PerClaimCap,
-		AnnualCap:         req.AnnualCap,
+		CoveragePercent:   domain.PercentFromFloat(req.CoveragePercent),
+		PerClaimCap:       domain.RialPtrFromFloatPtr(req.PerClaimCap),
+		AnnualCap:         domain.RialPtrFromFloatPtr(req.AnnualCap),
 		WaitingPeriodDays: req.WaitingPeriodDays,
 		EligibleRelations: req.EligibleRelations,
 		EffectiveFrom:     req.EffectiveFrom,

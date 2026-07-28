@@ -13,9 +13,9 @@ import (
 type PublishRuleInput struct {
 	PlanID            uuid.UUID
 	ServiceTypeID     uuid.UUID
-	CoveragePercent   float64
-	PerClaimCap       *float64
-	AnnualCap         *float64
+	CoveragePercent   domain.Percent
+	PerClaimCap       *domain.Rial
+	AnnualCap         *domain.Rial
 	WaitingPeriodDays int
 	EligibleRelations []domain.Relation
 	EffectiveFrom     time.Time
@@ -30,7 +30,7 @@ func (s *Service) PublishRuleVersion(ctx context.Context, actor domain.Actor, in
 	if len(in.EligibleRelations) == 0 {
 		return domain.CoverageRule{}, domain.Validationf("at least one eligible relation is required")
 	}
-	if in.CoveragePercent < 0 || in.CoveragePercent > 100 {
+	if in.CoveragePercent < 0 || in.CoveragePercent > domain.PercentFromFloat(100) {
 		return domain.CoverageRule{}, domain.Validationf("coverage percent must be between 0 and 100")
 	}
 

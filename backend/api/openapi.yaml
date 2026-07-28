@@ -5,8 +5,9 @@ info:
     REST API of the supplementary-insurance capstone module: config-driven
     coverage rules, a multi-stage claim workflow with a full audit trail,
     RBAC (admin / reviewer / employee / auditor), management reporting, and a
-    parent-system integration seam. This document is the single source of
-    truth for the wire format — the Go transport DTOs and the frontend's
+    parent-system integration seam. Monetary amounts are whole Rial — the
+    currency has no fractional unit in everyday use (ADR-0003). This document
+    is the single source of truth for the wire format — the Go transport DTOs and the frontend's
     generated TypeScript types both conform to it (ADR-0002).
   version: 1.0.0
 

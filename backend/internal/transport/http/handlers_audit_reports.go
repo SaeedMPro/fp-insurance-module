@@ -43,7 +43,7 @@ func (s *Server) handleReportSummary(w http.ResponseWriter, r *http.Request) {
 	}
 	writeJSON(w, http.StatusOK, summaryDTO{
 		TotalClaims:             out.TotalClaims,
-		TotalPaidAmount:         out.TotalPaidAmount,
+		TotalPaidAmount:         out.TotalPaidAmount.Float(),
 		PendingReview:           out.PendingReview,
 		ApprovedAwaitingPayment: out.ApprovedAwaitingPayment,
 		Rejected:                out.Rejected,
@@ -59,7 +59,7 @@ func (s *Server) handleSpendByEmployee(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, mapSlice(out, func(v domain.EmployeeSpend) employeeSpendDTO {
 		return employeeSpendDTO{
 			EmployeeID: v.EmployeeID, EmployeeName: v.EmployeeName,
-			PersonnelNo: v.PersonnelNo, TotalPaid: v.TotalPaid, ClaimCount: v.ClaimCount,
+			PersonnelNo: v.PersonnelNo, TotalPaid: v.TotalPaid.Float(), ClaimCount: v.ClaimCount,
 		}
 	}))
 }
@@ -73,7 +73,7 @@ func (s *Server) handleSpendByServiceType(w http.ResponseWriter, r *http.Request
 	writeJSON(w, http.StatusOK, mapSlice(out, func(v domain.ServiceTypeSpend) serviceTypeSpendDTO {
 		return serviceTypeSpendDTO{
 			ServiceTypeCode: v.ServiceTypeCode, ServiceTypeName: v.ServiceTypeName,
-			TotalPaid: v.TotalPaid, ClaimCount: v.ClaimCount,
+			TotalPaid: v.TotalPaid.Float(), ClaimCount: v.ClaimCount,
 		}
 	}))
 }
@@ -85,6 +85,6 @@ func (s *Server) handleSpendByMonth(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, mapSlice(out, func(v domain.MonthSpend) monthSpendDTO {
-		return monthSpendDTO{Month: v.Month, TotalPaid: v.TotalPaid, ClaimCount: v.ClaimCount}
+		return monthSpendDTO{Month: v.Month, TotalPaid: v.TotalPaid.Float(), ClaimCount: v.ClaimCount}
 	}))
 }

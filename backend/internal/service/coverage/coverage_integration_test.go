@@ -140,7 +140,7 @@ func TestPublishRuleVersion_SameDayRepublishAndTiebreak(t *testing.T) {
 	today := time.Now().Truncate(24 * time.Hour)
 	publish := func(pct float64) domain.CoverageRule {
 		rule, err := svcs.Coverage.PublishRuleVersion(ctx, admin, coverage.PublishRuleInput{
-			PlanID: plan.ID, ServiceTypeID: st.ID, CoveragePercent: pct,
+			PlanID: plan.ID, ServiceTypeID: st.ID, CoveragePercent: domain.PercentFromFloat(pct),
 			WaitingPeriodDays: 0, EligibleRelations: []domain.Relation{domain.RelationSelf},
 			EffectiveFrom: today,
 		})
@@ -155,7 +155,7 @@ func TestPublishRuleVersion_SameDayRepublishAndTiebreak(t *testing.T) {
 
 	active, err := store.ActiveRule(ctx, plan.ID, st.ID, today)
 	require.NoError(t, err)
-	require.Equal(t, 63.0, active.CoveragePercent)
+	require.Equal(t, domain.PercentFromFloat(63), active.CoveragePercent)
 
 	// Exactly one open version remains.
 	rules, err := svcs.Coverage.ListRules(ctx, domain.RuleFilter{PlanID: plan.ID.String(), ServiceTypeID: st.ID.String()})

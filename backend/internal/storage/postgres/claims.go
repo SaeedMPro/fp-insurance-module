@@ -82,7 +82,7 @@ func (s *Store) SumPayable(
 	statuses []domain.ClaimStatus,
 	from, to time.Time,
 	excludeClaimID *uuid.UUID,
-) (float64, error) {
+) (domain.Rial, error) {
 	strStatuses := make([]string, 0, len(statuses))
 	for _, st := range statuses {
 		strStatuses = append(strStatuses, string(st))
@@ -101,7 +101,8 @@ func (s *Store) SumPayable(
 	if total == nil {
 		return 0, nil
 	}
-	return *total, nil
+	// The column is NUMERIC; convert once, at the boundary, into whole rial.
+	return domain.RialFromFloat(*total), nil
 }
 
 func (s *Store) CreatePayment(ctx context.Context, p *domain.Payment) error {

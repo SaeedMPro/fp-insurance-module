@@ -78,6 +78,6 @@ func (s *Server) handleIntegrationClaimStatus(w http.ResponseWriter, r *http.Req
 		return
 	}
 	writeJSON(w, http.StatusOK, claimStatusResponse{
-		ID: claim.ID, Status: claim.Status, PayableAmount: claim.PayableAmount,
+		ID: claim.ID, Status: claim.Status, PayableAmount: domain.FloatPtrFromRialPtr(claim.PayableAmount),
 	})
 }

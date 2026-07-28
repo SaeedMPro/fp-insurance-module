@@ -64,7 +64,7 @@ type ReportRange struct {
 
 type ReportSummary struct {
 	TotalClaims             int64
-	TotalPaidAmount         float64
+	TotalPaidAmount         Rial
 	PendingReview           int64
 	ApprovedAwaitingPayment int64
 	Rejected                int64
@@ -74,20 +74,20 @@ type EmployeeSpend struct {
 	EmployeeID   uuid.UUID
 	EmployeeName string
 	PersonnelNo  string
-	TotalPaid    float64
+	TotalPaid    Rial
 	ClaimCount   int64
 }
 
 type ServiceTypeSpend struct {
 	ServiceTypeCode string
 	ServiceTypeName string
-	TotalPaid       float64
+	TotalPaid       Rial
 	ClaimCount      int64
 }
 
 type MonthSpend struct {
 	Month      string
-	TotalPaid  float64
+	TotalPaid  Rial
 	ClaimCount int64
 }
 
@@ -96,9 +96,9 @@ type MonthSpend struct {
 type RemainingCap struct {
 	ServiceTypeCode string
 	ServiceTypeName string
-	CoveragePercent float64
-	PerClaimCap     *float64
-	AnnualCap       *float64
-	UsedAnnual      float64
-	RemainingAnnual *float64
+	CoveragePercent Percent
+	PerClaimCap     *Rial
+	AnnualCap       *Rial
+	UsedAnnual      Rial
+	RemainingAnnual *Rial
 }

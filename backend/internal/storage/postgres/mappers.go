@@ -76,7 +76,9 @@ func (r ruleRow) toDomain() domain.CoverageRule {
 	}
 	return domain.CoverageRule{
 		ID: r.ID, PlanID: r.PlanID, ServiceTypeID: r.ServiceTypeID,
-		CoveragePercent: r.CoveragePercent, PerClaimCap: r.PerClaimCap, AnnualCap: r.AnnualCap,
+		CoveragePercent:   domain.PercentFromFloat(r.CoveragePercent),
+		PerClaimCap:       domain.RialPtrFromFloatPtr(r.PerClaimCap),
+		AnnualCap:         domain.RialPtrFromFloatPtr(r.AnnualCap),
 		WaitingPeriodDays: r.WaitingPeriodDays, EligibleRelations: relations,
 		EffectiveFrom: r.EffectiveFrom, EffectiveTo: r.EffectiveTo,
 		CreatedBy: r.CreatedBy, CreatedAt: r.CreatedAt,
@@ -90,7 +92,9 @@ func ruleFromDomain(c domain.CoverageRule) ruleRow {
 	}
 	return ruleRow{
 		ID: c.ID, PlanID: c.PlanID, ServiceTypeID: c.ServiceTypeID,
-		CoveragePercent: c.CoveragePercent, PerClaimCap: c.PerClaimCap, AnnualCap: c.AnnualCap,
+		CoveragePercent:   c.CoveragePercent.Float(),
+		PerClaimCap:       domain.FloatPtrFromRialPtr(c.PerClaimCap),
+		AnnualCap:         domain.FloatPtrFromRialPtr(c.AnnualCap),
 		WaitingPeriodDays: c.WaitingPeriodDays, EligibleRelations: relations,
 		EffectiveFrom: c.EffectiveFrom, EffectiveTo: c.EffectiveTo,
 		CreatedBy: c.CreatedBy, CreatedAt: c.CreatedAt,
@@ -118,10 +122,13 @@ func (r claimRow) toDomain() domain.Claim {
 		ID: r.ID, EmployeeID: r.EmployeeID,
 		BeneficiaryType: domain.BeneficiaryType(r.BeneficiaryType), DependentID: r.DependentID,
 		ServiceTypeID: r.ServiceTypeID, PlanID: r.PlanID,
-		RequestedAmount: r.RequestedAmount, ReceiptDate: r.ReceiptDate, Description: r.Description,
-		Status: domain.ClaimStatus(r.Status), CoveragePercentApplied: r.CoveragePercentApplied,
-		PayableAmount: r.PayableAmount, RejectionReason: r.RejectionReason,
-		SubmittedAt: r.SubmittedAt, ReviewedBy: r.ReviewedBy, ReviewedAt: r.ReviewedAt,
+		RequestedAmount: domain.RialFromFloat(r.RequestedAmount),
+		ReceiptDate:     r.ReceiptDate, Description: r.Description,
+		Status:                 domain.ClaimStatus(r.Status),
+		CoveragePercentApplied: percentPtrFromFloatPtr(r.CoveragePercentApplied),
+		PayableAmount:          domain.RialPtrFromFloatPtr(r.PayableAmount),
+		RejectionReason:        r.RejectionReason,
+		SubmittedAt:            r.SubmittedAt, ReviewedBy: r.ReviewedBy, ReviewedAt: r.ReviewedAt,
 		PaidAt: r.PaidAt, ClosedAt: r.ClosedAt,
 		CreatedBy: r.CreatedBy, CreatedAt: r.CreatedAt, UpdatedAt: r.UpdatedAt,
 	}
@@ -132,10 +139,13 @@ func claimFromDomain(c domain.Claim) claimRow {
 		ID: c.ID, EmployeeID: c.EmployeeID,
 		BeneficiaryType: string(c.BeneficiaryType), DependentID: c.DependentID,
 		ServiceTypeID: c.ServiceTypeID, PlanID: c.PlanID,
-		RequestedAmount: c.RequestedAmount, ReceiptDate: c.ReceiptDate, Description: c.Description,
-		Status: string(c.Status), CoveragePercentApplied: c.CoveragePercentApplied,
-		PayableAmount: c.PayableAmount, RejectionReason: c.RejectionReason,
-		SubmittedAt: c.SubmittedAt, ReviewedBy: c.ReviewedBy, ReviewedAt: c.ReviewedAt,
+		RequestedAmount: c.RequestedAmount.Float(),
+		ReceiptDate:     c.ReceiptDate, Description: c.Description,
+		Status:                 string(c.Status),
+		CoveragePercentApplied: floatPtrFromPercentPtr(c.CoveragePercentApplied),
+		PayableAmount:          domain.FloatPtrFromRialPtr(c.PayableAmount),
+		RejectionReason:        c.RejectionReason,
+		SubmittedAt:            c.SubmittedAt, ReviewedBy: c.ReviewedBy, ReviewedAt: c.ReviewedAt,
 		PaidAt: c.PaidAt, ClosedAt: c.ClosedAt,
 		CreatedBy: c.CreatedBy, CreatedAt: c.CreatedAt, UpdatedAt: c.UpdatedAt,
 	}
@@ -143,7 +153,7 @@ func claimFromDomain(c domain.Claim) claimRow {
 
 func paymentFromDomain(p domain.Payment) paymentRow {
 	return paymentRow{
-		ID: p.ID, ClaimID: p.ClaimID, Amount: p.Amount,
+		ID: p.ID, ClaimID: p.ClaimID, Amount: p.Amount.Float(),
 		PaymentReference: p.PaymentReference, Status: string(p.Status), PaidAt: p.PaidAt,
 	}
 }
@@ -164,4 +174,22 @@ func auditFromDomain(a domain.AuditLog) auditRow {
 		BeforeData: a.BeforeData, AfterData: a.AfterData, Metadata: a.Metadata,
 		OccurredAt: a.OccurredAt,
 	}
+}
+
+// percentPtrFromFloatPtr / floatPtrFromPercentPtr map the nullable
+// coverage_percent_applied column (NUMERIC(5,2)) to basis points and back.
+func percentPtrFromFloatPtr(f *float64) *domain.Percent {
+	if f == nil {
+		return nil
+	}
+	p := domain.PercentFromFloat(*f)
+	return &p
+}
+
+func floatPtrFromPercentPtr(p *domain.Percent) *float64 {
+	if p == nil {
+		return nil
+	}
+	f := p.Float()
+	return &f
 }

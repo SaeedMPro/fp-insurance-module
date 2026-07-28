@@ -39,7 +39,7 @@ type Repo interface {
 	CreateRule(ctx context.Context, r *domain.CoverageRule) error
 	ListRules(ctx context.Context, f domain.RuleFilter) ([]domain.CoverageRule, error)
 	SumPayable(ctx context.Context, employeeID, serviceTypeID, planID uuid.UUID,
-		statuses []domain.ClaimStatus, from, to time.Time, excludeClaimID *uuid.UUID) (float64, error)
+		statuses []domain.ClaimStatus, from, to time.Time, excludeClaimID *uuid.UUID) (domain.Rial, error)
 	ListServiceTypes(ctx context.Context) ([]domain.ServiceType, error)
 	ListContracts(ctx context.Context) ([]domain.InsuranceContract, error)
 	CreateContract(ctx context.Context, c *domain.InsuranceContract) error
@@ -78,7 +78,7 @@ type CalcInput struct {
 	PlanID          uuid.UUID
 	BeneficiaryType domain.BeneficiaryType
 	DependentID     *uuid.UUID
-	RequestedAmount float64
+	RequestedAmount domain.Rial
 	ReceiptDate     time.Time
 	// ExcludeClaimID lets re-pricing a claim exclude its own previous
 	// contribution to the annual-cap usage sum.
@@ -88,13 +88,13 @@ type CalcInput struct {
 // CalcResult is the priced outcome, with enough detail to explain the decision.
 type CalcResult struct {
 	RuleID                  uuid.UUID
-	CoveragePercentApplied  float64
-	RawCoveredAmount        float64
-	PayableAmount           float64
-	AnnualCap               *float64
-	PerClaimCap             *float64
-	UsedAnnualBeforeClaim   float64
-	RemainingAnnualCapAfter *float64
+	CoveragePercentApplied  domain.Percent
+	RawCoveredAmount        domain.Rial
+	PayableAmount           domain.Rial
+	AnnualCap               *domain.Rial
+	PerClaimCap             *domain.Rial
+	UsedAnnualBeforeClaim   domain.Rial
+	RemainingAnnualCapAfter *domain.Rial
 	CappedByPerClaim        bool
 	CappedByAnnualCap       bool
 }
@@ -135,8 +135,10 @@ func (s *Service) Calculate(ctx context.Context, in CalcInput) (*CalcResult, err
 	}
 
 	if rule.WaitingPeriodDays > 0 {
-		eligibleFrom := employee.HireDate.AddDate(0, 0, rule.WaitingPeriodDays)
-		if in.ReceiptDate.Before(eligibleFrom) {
+		// Compare civil days in the business timezone: a receipt dated the day
+		// eligibility starts must qualify regardless of host zone (ADR-0004).
+		eligibleFrom := domain.BusinessDay(employee.HireDate).AddDate(0, 0, rule.WaitingPeriodDays)
+		if domain.BusinessDay(in.ReceiptDate).Before(eligibleFrom) {
 			return nil, ErrWaitingPeriod
 		}
 	}
@@ -154,7 +156,12 @@ func (s *Service) Calculate(ctx context.Context, in CalcInput) (*CalcResult, err
 // Compute is the pure pricing function: given a rule version, the requested
 // amount, and how much annual cap is already used, it returns the payable
 // amount and which cap (if any) bound it.
-func Compute(rule domain.CoverageRule, requestedAmount, usedAnnualBeforeClaim float64) CalcResult {
+//
+// All arithmetic is exact integer rial (ADR-0003); the single rounding
+// decision — half-up to the whole rial — happens inside Percent.ApplyTo, so
+// caps are compared against an already-whole amount and no fractional value
+// can escape into a payment or an annual-cap total.
+func Compute(rule domain.CoverageRule, requestedAmount, usedAnnualBeforeClaim domain.Rial) CalcResult {
 	res := CalcResult{
 		CoveragePercentApplied: rule.CoveragePercent,
 		AnnualCap:              rule.AnnualCap,
@@ -162,10 +169,9 @@ func Compute(rule domain.CoverageRule, requestedAmount, usedAnnualBeforeClaim fl
 		UsedAnnualBeforeClaim:  usedAnnualBeforeClaim,
 	}
 
-	rawCovered := requestedAmount * rule.CoveragePercent / 100.0
-	res.RawCoveredAmount = rawCovered
+	covered := rule.CoveragePercent.ApplyTo(requestedAmount)
+	res.RawCoveredAmount = covered
 
-	covered := rawCovered
 	if rule.PerClaimCap != nil && covered > *rule.PerClaimCap {
 		covered = *rule.PerClaimCap
 		res.CappedByPerClaim = true
@@ -187,7 +193,7 @@ func Compute(rule domain.CoverageRule, requestedAmount, usedAnnualBeforeClaim fl
 	if payable < 0 {
 		payable = 0
 	}
-	res.PayableAmount = round2(payable)
+	res.PayableAmount = payable
 	return res
 }
 
@@ -248,19 +254,21 @@ func (s *Service) activeRule(ctx context.Context, planID, serviceTypeID uuid.UUI
 // usedAnnualAmount sums committed payables inside the rule's contract-year
 // window (a 12-month window anchored to the rule's effective_from anniversary
 // containing "now" — caps reset relative to the policy's own start date).
-func (s *Service) usedAnnualAmount(ctx context.Context, employeeID, serviceTypeID, planID uuid.UUID, rule domain.CoverageRule, excludeClaimID *uuid.UUID) (float64, error) {
+func (s *Service) usedAnnualAmount(ctx context.Context, employeeID, serviceTypeID, planID uuid.UUID, rule domain.CoverageRule, excludeClaimID *uuid.UUID) (domain.Rial, error) {
 	yearStart, yearEnd := contractYearWindow(rule.EffectiveFrom, s.clock.Now())
 	return s.repo.SumPayable(ctx, employeeID, serviceTypeID, planID, committedStatuses, yearStart, yearEnd, excludeClaimID)
 }
 
+// contractYearWindow is the 12-month window anchored on the rule's
+// effective_from anniversary that contains now, evaluated in the business
+// timezone so the window does not shift with the host's zone (ADR-0004).
 func contractYearWindow(effectiveFrom, now time.Time) (time.Time, time.Time) {
-	start := time.Date(now.Year(), effectiveFrom.Month(), effectiveFrom.Day(), 0, 0, 0, 0, time.UTC)
-	if start.After(now) {
+	loc := domain.BusinessLocation()
+	anchor := effectiveFrom.In(loc)
+	localNow := now.In(loc)
+	start := time.Date(localNow.Year(), anchor.Month(), anchor.Day(), 0, 0, 0, 0, loc)
+	if start.After(localNow) {
 		start = start.AddDate(-1, 0, 0)
 	}
 	return start, start.AddDate(1, 0, 0)
-}
-
-func round2(v float64) float64 {
-	return float64(int64(v*100+0.5)) / 100
 }

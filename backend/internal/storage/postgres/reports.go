@@ -3,6 +3,7 @@ package postgres
 import (
 	"context"
 
+	"github.com/google/uuid"
 	"gorm.io/gorm"
 
 	"insurance-module/internal/domain"
@@ -40,7 +41,7 @@ func (s *Store) ReportSummary(ctx context.Context, r domain.ReportRange) (domain
 		return out, err
 	}
 	if totalPaid != nil {
-		out.TotalPaidAmount = *totalPaid
+		out.TotalPaidAmount = domain.RialFromFloat(*totalPaid)
 	}
 
 	if err := applyRange(s.ctx(ctx).Model(&claimRow{}), r).
@@ -62,7 +63,14 @@ func (s *Store) ReportSummary(ctx context.Context, r domain.ReportRange) (domain
 }
 
 func (s *Store) SpendByEmployee(ctx context.Context, r domain.ReportRange) ([]domain.EmployeeSpend, error) {
-	var out []domain.EmployeeSpend
+	// SUM() over NUMERIC scans into float64; convert to Rial per row below.
+	var rows []struct {
+		EmployeeID   uuid.UUID
+		EmployeeName string
+		PersonnelNo  string
+		TotalPaid    float64
+		ClaimCount   int64
+	}
 	q := applyRange(s.ctx(ctx).Table("claims"), r).
 		Joins("JOIN employees ON employees.id = claims.employee_id").
 		Where("claims.status IN ?", paidStatuses).
@@ -72,11 +80,27 @@ func (s *Store) SpendByEmployee(ctx context.Context, r domain.ReportRange) ([]do
 			COUNT(claims.id) AS claim_count`).
 		Group("employees.id, employees.full_name, employees.personnel_no").
 		Order("total_paid DESC")
-	return out, q.Scan(&out).Error
+	if err := q.Scan(&rows).Error; err != nil {
+		return nil, err
+	}
+	out := make([]domain.EmployeeSpend, 0, len(rows))
+	for _, row := range rows {
+		out = append(out, domain.EmployeeSpend{
+			EmployeeID: row.EmployeeID, EmployeeName: row.EmployeeName,
+			PersonnelNo: row.PersonnelNo, TotalPaid: domain.RialFromFloat(row.TotalPaid),
+			ClaimCount: row.ClaimCount,
+		})
+	}
+	return out, nil
 }
 
 func (s *Store) SpendByServiceType(ctx context.Context, r domain.ReportRange) ([]domain.ServiceTypeSpend, error) {
-	var out []domain.ServiceTypeSpend
+	var rows []struct {
+		ServiceTypeCode string
+		ServiceTypeName string
+		TotalPaid       float64
+		ClaimCount      int64
+	}
 	q := applyRange(s.ctx(ctx).Table("claims"), r).
 		Joins("JOIN service_types ON service_types.id = claims.service_type_id").
 		Where("claims.status IN ?", paidStatuses).
@@ -86,11 +110,25 @@ func (s *Store) SpendByServiceType(ctx context.Context, r domain.ReportRange) ([
 			COUNT(claims.id) AS claim_count`).
 		Group("service_types.code, service_types.name, service_types.name_fa").
 		Order("total_paid DESC")
-	return out, q.Scan(&out).Error
+	if err := q.Scan(&rows).Error; err != nil {
+		return nil, err
+	}
+	out := make([]domain.ServiceTypeSpend, 0, len(rows))
+	for _, row := range rows {
+		out = append(out, domain.ServiceTypeSpend{
+			ServiceTypeCode: row.ServiceTypeCode, ServiceTypeName: row.ServiceTypeName,
+			TotalPaid: domain.RialFromFloat(row.TotalPaid), ClaimCount: row.ClaimCount,
+		})
+	}
+	return out, nil
 }
 
 func (s *Store) SpendByMonth(ctx context.Context, r domain.ReportRange) ([]domain.MonthSpend, error) {
-	var out []domain.MonthSpend
+	var rows []struct {
+		Month      string
+		TotalPaid  float64
+		ClaimCount int64
+	}
 	q := applyRange(s.ctx(ctx).Table("claims"), r).
 		Where("claims.status IN ?", paidStatuses).
 		Select(`TO_CHAR(claims.receipt_date, 'YYYY-MM') AS month,
@@ -98,5 +136,14 @@ func (s *Store) SpendByMonth(ctx context.Context, r domain.ReportRange) ([]domai
 			COUNT(claims.id) AS claim_count`).
 		Group("TO_CHAR(claims.receipt_date, 'YYYY-MM')").
 		Order("month")
-	return out, q.Scan(&out).Error
+	if err := q.Scan(&rows).Error; err != nil {
+		return nil, err
+	}
+	out := make([]domain.MonthSpend, 0, len(rows))
+	for _, row := range rows {
+		out = append(out, domain.MonthSpend{
+			Month: row.Month, TotalPaid: domain.RialFromFloat(row.TotalPaid), ClaimCount: row.ClaimCount,
+		})
+	}
+	return out, nil
 }

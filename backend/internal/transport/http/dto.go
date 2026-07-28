@@ -130,7 +130,9 @@ type coverageRuleDTO struct {
 func toCoverageRuleDTO(r domain.CoverageRule) coverageRuleDTO {
 	return coverageRuleDTO{
 		ID: r.ID, PlanID: r.PlanID, ServiceTypeID: r.ServiceTypeID,
-		CoveragePercent: r.CoveragePercent, PerClaimCap: r.PerClaimCap, AnnualCap: r.AnnualCap,
+		CoveragePercent:   r.CoveragePercent.Float(),
+		PerClaimCap:       domain.FloatPtrFromRialPtr(r.PerClaimCap),
+		AnnualCap:         domain.FloatPtrFromRialPtr(r.AnnualCap),
 		WaitingPeriodDays: r.WaitingPeriodDays, EligibleRelations: r.EligibleRelations,
 		EffectiveFrom: r.EffectiveFrom, EffectiveTo: r.EffectiveTo,
 		CreatedBy: r.CreatedBy, CreatedAt: r.CreatedAt,
@@ -165,10 +167,13 @@ func toClaimDTO(c domain.Claim) claimDTO {
 	return claimDTO{
 		ID: c.ID, EmployeeID: c.EmployeeID, BeneficiaryType: c.BeneficiaryType,
 		DependentID: c.DependentID, ServiceTypeID: c.ServiceTypeID, PlanID: c.PlanID,
-		RequestedAmount: c.RequestedAmount, ReceiptDate: c.ReceiptDate, Description: c.Description,
-		Status: c.Status, CoveragePercentApplied: c.CoveragePercentApplied,
-		PayableAmount: c.PayableAmount, RejectionReason: c.RejectionReason,
-		SubmittedAt: c.SubmittedAt, ReviewedBy: c.ReviewedBy, ReviewedAt: c.ReviewedAt,
+		RequestedAmount: c.RequestedAmount.Float(),
+		ReceiptDate:     c.ReceiptDate, Description: c.Description,
+		Status:                 c.Status,
+		CoveragePercentApplied: percentFloatPtr(c.CoveragePercentApplied),
+		PayableAmount:          domain.FloatPtrFromRialPtr(c.PayableAmount),
+		RejectionReason:        c.RejectionReason,
+		SubmittedAt:            c.SubmittedAt, ReviewedBy: c.ReviewedBy, ReviewedAt: c.ReviewedAt,
 		PaidAt: c.PaidAt, ClosedAt: c.ClosedAt,
 		CreatedBy: c.CreatedBy, CreatedAt: c.CreatedAt, UpdatedAt: c.UpdatedAt,
 	}
@@ -209,8 +214,11 @@ type remainingCapDTO struct {
 func toRemainingCapDTO(c domain.RemainingCap) remainingCapDTO {
 	return remainingCapDTO{
 		ServiceTypeCode: c.ServiceTypeCode, ServiceTypeName: c.ServiceTypeName,
-		CoveragePercent: c.CoveragePercent, PerClaimCap: c.PerClaimCap, AnnualCap: c.AnnualCap,
-		UsedAnnual: c.UsedAnnual, RemainingAnnual: c.RemainingAnnual,
+		CoveragePercent: c.CoveragePercent.Float(),
+		PerClaimCap:     domain.FloatPtrFromRialPtr(c.PerClaimCap),
+		AnnualCap:       domain.FloatPtrFromRialPtr(c.AnnualCap),
+		UsedAnnual:      c.UsedAnnual.Float(),
+		RemainingAnnual: domain.FloatPtrFromRialPtr(c.RemainingAnnual),
 	}
 }
 
@@ -255,4 +263,14 @@ func mapSlice[In any, Out any](in []In, f func(In) Out) []Out {
 		out = append(out, f(v))
 	}
 	return out
+}
+
+// percentFloatPtr renders an optional basis-point percentage as the JSON
+// number the contract specifies.
+func percentFloatPtr(p *domain.Percent) *float64 {
+	if p == nil {
+		return nil
+	}
+	f := p.Float()
+	return &f
 }

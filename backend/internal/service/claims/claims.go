@@ -85,7 +85,7 @@ type CreateInput struct {
 	BeneficiaryType domain.BeneficiaryType
 	DependentID     *uuid.UUID
 	ServiceTypeID   uuid.UUID
-	RequestedAmount float64
+	RequestedAmount domain.Rial
 	ReceiptDate     time.Time
 	Description     string
 }
