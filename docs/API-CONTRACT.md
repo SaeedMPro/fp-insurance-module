@@ -1,13 +1,23 @@
 # Supplementary Insurance Module — REST API Contract
 
+> **The machine-readable contract is [`backend/api/openapi.yaml`](../backend/api/openapi.yaml)** —
+> that document is the single source of truth (ADR-0002). The frontend's
+> TypeScript types are generated from it (`frontend/src/api/schema.d.ts`, via
+> `npm run gen:api`), and two Go tests keep the server honest about it:
+> `TestOpenAPIConformance` validates real responses against the schemas, and
+> `TestOpenAPISpecCoversEveryRoute` fails if a route is served but undocumented.
+>
+> This page remains as human-oriented commentary: the same surface with prose
+> notes on authorization and behaviour. If the two ever disagree, the spec wins.
+
 Base URL: `/api/v1`. All bodies are JSON. All timestamps are RFC3339. All money
-fields are JSON numbers (Rial, 2 decimal places). Errors are always
-`{"error": "message"}` with a non-2xx status.
+fields are JSON numbers (Rial). Errors are always `{"error": "message"}` with a
+non-2xx status.
 
 Auth: `Authorization: Bearer <JWT>` for interactive users. The parent-system
 integration endpoints use `X-API-Key: <key>` instead and carry no JWT.
 
-Roles: `admin`, `reviewer`, `employee`, `auditor` (see `internal/models.Role`).
+Roles: `admin`, `reviewer`, `employee`, `auditor` (see `internal/domain.Role`).
 
 ## Auth
 
@@ -20,7 +30,7 @@ Response 401: error
 Auth: any authenticated user.
 Response 200: `User`
 
-`User` shape (see `internal/models.User`, `PasswordHash` never serialized):
+`User` shape (see `internal/domain.User`, `PasswordHash` never serialized):
 ```json
 {"id":"uuid","username":"string","full_name":"string","role":"admin|reviewer|employee|auditor","employee_id":"uuid|null","is_active":true,"created_at":"...","updated_at":"..."}
 ```
@@ -59,12 +69,12 @@ Response 200: array of, one per service type:
  "per_claim_cap":3000000,"annual_cap":15000000,"used_annual":1200000,"remaining_annual":13800000}
 ```
 
-`Employee` shape: see `internal/models.Employee`. `Dependent` shape: see `internal/models.Dependent`.
+`Employee` shape: see `internal/domain.Employee`. `Dependent` shape: see `internal/domain.Dependent`.
 
 ## Reference / config data
 
 ### GET /service-types
-Auth: any authenticated user. Response 200: `ServiceType[]` (see `internal/models.ServiceType`).
+Auth: any authenticated user. Response 200: `ServiceType[]` (see `internal/domain.ServiceType`).
 
 ### GET /contracts
 Auth: any authenticated user. Response 200: `InsuranceContract[]`.
@@ -90,13 +100,15 @@ row here changes benefits with no code deploy. Request:
  "per_claim_cap":2000000,"annual_cap":6000000,"waiting_period_days":30,
  "eligible_relations":["self","spouse"],"effective_from":"2026-01-01T00:00:00Z"}
 ```
-Server behaviour: within one transaction, closes the previous active rule for the
-same `(plan_id, service_type_id)` by setting its `effective_to = effective_from - 1 day`,
-then inserts the new row. Writes an `audit_logs` entry (`entity_type="coverage_rule"`,
+Server behaviour: within one transaction, closes the previous open rule for the
+same `(plan_id, service_type_id)` by setting its `effective_to = effective_from - 1 day`
+— clamped to the old rule's own `effective_from` when the new version starts on the
+same day, so the row constraint holds and the newest version wins that day — then
+inserts the new row. Writes an `audit_logs` entry (`entity_type="coverage_rule"`,
 `action="config_change"`, before/after = the two rule versions).
 Response 201: `CoverageRule`.
 
-`CoverageRule` shape: see `internal/models.CoverageRule`.
+`CoverageRule` shape: see `internal/domain.CoverageRule`.
 
 ## Claims
 
@@ -154,9 +166,9 @@ Error codes used by all the above transition endpoints: 409 Conflict for an
 invalid transition (`ErrInvalidTransition`), 403 Forbidden for a disallowed actor
 role (`ErrForbidden`), 400 for a missing required reason (`ErrReasonRequired`), 422
 if the rule engine cannot price the claim (no active rule, not eligible, waiting
-period, inactive employee — surface the underlying `ruleengine` error message).
+period, inactive employee — surface the underlying `service/coverage` error message).
 
-`Claim` shape: see `internal/models.Claim`.
+`Claim` shape: see `internal/domain.Claim`.
 
 ## Audit log
 
@@ -165,7 +177,7 @@ Auth: admin, auditor. Query: `entity_type`, `entity_id`, `actor_user_id`, `actio
 `from`, `to`, `page`, `page_size`.
 Response 200: `{"items": AuditLog[], "total": number}`
 
-`AuditLog` shape: see `internal/models.AuditLog`.
+`AuditLog` shape: see `internal/domain.AuditLog`.
 
 ## Reports
 

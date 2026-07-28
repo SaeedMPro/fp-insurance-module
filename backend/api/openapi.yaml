@@ -1,0 +1,1080 @@
+openapi: 3.0.3
+info:
+  title: Supplementary Insurance Module API
+  description: >
+    REST API of the supplementary-insurance capstone module: config-driven
+    coverage rules, a multi-stage claim workflow with a full audit trail,
+    RBAC (admin / reviewer / employee / auditor), management reporting, and a
+    parent-system integration seam. This document is the single source of
+    truth for the wire format — the Go transport DTOs and the frontend's
+    generated TypeScript types both conform to it (ADR-0002).
+  version: 1.0.0
+
+servers:
+  - url: /api/v1
+
+security:
+  - bearerAuth: []
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+    apiKey:
+      type: apiKey
+      in: header
+      name: X-API-Key
+
+  parameters:
+    Page:
+      name: page
+      in: query
+      schema: { type: integer, minimum: 1, default: 1 }
+    PageSize:
+      name: page_size
+      in: query
+      schema: { type: integer, minimum: 1, maximum: 200, default: 50 }
+    FromDate:
+      name: from
+      in: query
+      description: Inclusive lower bound, YYYY-MM-DD.
+      schema: { type: string, format: date }
+    ToDate:
+      name: to
+      in: query
+      description: Inclusive upper bound, YYYY-MM-DD.
+      schema: { type: string, format: date }
+    ClaimID:
+      name: id
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+
+  responses:
+    Error:
+      description: Error envelope (all non-2xx responses).
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+
+  schemas:
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error: { type: string }
+
+    Role:
+      type: string
+      enum: [admin, reviewer, employee, auditor]
+
+    EmploymentStatus:
+      type: string
+      enum: [active, terminated]
+
+    Relation:
+      type: string
+      enum: [self, spouse, child, parent]
+
+    BeneficiaryType:
+      type: string
+      enum: [self, dependent]
+
+    ClaimStatus:
+      type: string
+      enum:
+        [draft, submitted, under_review, returned_for_docs, approved,
+         rejected, payment_calculated, paid, closed]
+
+    User:
+      type: object
+      required: [id, username, full_name, role, employee_id, is_active, created_at, updated_at]
+      properties:
+        id: { type: string, format: uuid }
+        username: { type: string }
+        full_name: { type: string }
+        role: { $ref: "#/components/schemas/Role" }
+        employee_id: { type: string, format: uuid, nullable: true }
+        is_active: { type: boolean }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
+    Employee:
+      type: object
+      required: [id, personnel_no, full_name, national_id, employment_status,
+                 hire_date, department, plan_id, created_at, updated_at]
+      properties:
+        id: { type: string, format: uuid }
+        personnel_no: { type: string }
+        full_name: { type: string }
+        national_id: { type: string }
+        employment_status: { $ref: "#/components/schemas/EmploymentStatus" }
+        hire_date: { type: string, format: date-time }
+        department: { type: string }
+        plan_id: { type: string, format: uuid, nullable: true }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
+    Dependent:
+      type: object
+      required: [id, employee_id, full_name, relation, national_id, birth_date, created_at]
+      properties:
+        id: { type: string, format: uuid }
+        employee_id: { type: string, format: uuid }
+        full_name: { type: string }
+        relation: { $ref: "#/components/schemas/Relation" }
+        national_id: { type: string }
+        birth_date: { type: string, format: date-time, nullable: true }
+        created_at: { type: string, format: date-time }
+
+    ServiceType:
+      type: object
+      required: [id, code, name, name_fa, created_at]
+      properties:
+        id: { type: string, format: uuid }
+        code: { type: string }
+        name: { type: string }
+        name_fa: { type: string }
+        created_at: { type: string, format: date-time }
+
+    InsuranceContract:
+      type: object
+      required: [id, name, start_date, end_date, is_active, created_at, updated_at]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        start_date: { type: string, format: date-time }
+        end_date: { type: string, format: date-time }
+        is_active: { type: boolean }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
+    CoveragePlan:
+      type: object
+      required: [id, contract_id, name, description, created_at, updated_at]
+      properties:
+        id: { type: string, format: uuid }
+        contract_id: { type: string, format: uuid }
+        name: { type: string }
+        description: { type: string }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
+    CoverageRule:
+      type: object
+      required: [id, plan_id, service_type_id, coverage_percent, per_claim_cap,
+                 annual_cap, waiting_period_days, eligible_relations,
+                 effective_from, effective_to, created_by, created_at]
+      properties:
+        id: { type: string, format: uuid }
+        plan_id: { type: string, format: uuid }
+        service_type_id: { type: string, format: uuid }
+        coverage_percent: { type: number }
+        per_claim_cap: { type: number, nullable: true }
+        annual_cap: { type: number, nullable: true }
+        waiting_period_days: { type: integer }
+        eligible_relations:
+          type: array
+          items: { $ref: "#/components/schemas/Relation" }
+        effective_from: { type: string, format: date-time }
+        effective_to: { type: string, format: date-time, nullable: true }
+        created_by: { type: string, format: uuid, nullable: true }
+        created_at: { type: string, format: date-time }
+
+    Claim:
+      type: object
+      required: [id, employee_id, beneficiary_type, dependent_id, service_type_id,
+                 plan_id, requested_amount, receipt_date, description, status,
+                 coverage_percent_applied, payable_amount, submitted_at,
+                 reviewed_by, reviewed_at, paid_at, closed_at, created_by,
+                 created_at, updated_at]
+      properties:
+        id: { type: string, format: uuid }
+        employee_id: { type: string, format: uuid }
+        beneficiary_type: { $ref: "#/components/schemas/BeneficiaryType" }
+        dependent_id: { type: string, format: uuid, nullable: true }
+        service_type_id: { type: string, format: uuid }
+        plan_id: { type: string, format: uuid }
+        requested_amount: { type: number }
+        receipt_date: { type: string, format: date-time }
+        description: { type: string }
+        status: { $ref: "#/components/schemas/ClaimStatus" }
+        coverage_percent_applied: { type: number, nullable: true }
+        payable_amount: { type: number, nullable: true }
+        rejection_reason:
+          type: string
+          description: Present only when a reviewer rejected or returned the claim.
+        submitted_at: { type: string, format: date-time, nullable: true }
+        reviewed_by: { type: string, format: uuid, nullable: true }
+        reviewed_at: { type: string, format: date-time, nullable: true }
+        paid_at: { type: string, format: date-time, nullable: true }
+        closed_at: { type: string, format: date-time, nullable: true }
+        created_by: { type: string, format: uuid }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
+    AuditLog:
+      type: object
+      required: [id, entity_type, entity_id, action, actor_user_id,
+                 actor_username, before_data, after_data, metadata, occurred_at]
+      properties:
+        id: { type: string, format: uuid }
+        entity_type: { type: string }
+        entity_id: { type: string }
+        action: { type: string }
+        actor_user_id: { type: string, format: uuid, nullable: true }
+        actor_username: { type: string }
+        before_data:
+          type: object
+          additionalProperties: true
+          nullable: true
+        after_data:
+          type: object
+          additionalProperties: true
+          nullable: true
+        metadata:
+          type: object
+          additionalProperties: true
+          nullable: true
+        occurred_at: { type: string, format: date-time }
+
+    RemainingCap:
+      type: object
+      required: [service_type_code, service_type_name, coverage_percent,
+                 per_claim_cap, annual_cap, used_annual, remaining_annual]
+      properties:
+        service_type_code: { type: string }
+        service_type_name: { type: string }
+        coverage_percent: { type: number }
+        per_claim_cap: { type: number, nullable: true }
+        annual_cap: { type: number, nullable: true }
+        used_annual: { type: number }
+        remaining_annual: { type: number, nullable: true }
+
+    ReportSummary:
+      type: object
+      required: [total_claims, total_paid_amount, pending_review,
+                 approved_awaiting_payment, rejected]
+      properties:
+        total_claims: { type: integer }
+        total_paid_amount: { type: number }
+        pending_review: { type: integer }
+        approved_awaiting_payment: { type: integer }
+        rejected: { type: integer }
+
+    EmployeeSpend:
+      type: object
+      required: [employee_id, employee_name, personnel_no, total_paid, claim_count]
+      properties:
+        employee_id: { type: string, format: uuid }
+        employee_name: { type: string }
+        personnel_no: { type: string }
+        total_paid: { type: number }
+        claim_count: { type: integer }
+
+    ServiceTypeSpend:
+      type: object
+      required: [service_type_code, service_type_name, total_paid, claim_count]
+      properties:
+        service_type_code: { type: string }
+        service_type_name: { type: string }
+        total_paid: { type: number }
+        claim_count: { type: integer }
+
+    MonthSpend:
+      type: object
+      required: [month, total_paid, claim_count]
+      properties:
+        month: { type: string }
+        total_paid: { type: number }
+        claim_count: { type: integer }
+
+    ClaimList:
+      type: object
+      required: [items, total]
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/Claim" }
+        total: { type: integer }
+
+    EmployeeList:
+      type: object
+      required: [items, total]
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/Employee" }
+        total: { type: integer }
+
+    AuditLogList:
+      type: object
+      required: [items, total]
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/AuditLog" }
+        total: { type: integer }
+
+    LoginRequest:
+      type: object
+      required: [username, password]
+      properties:
+        username: { type: string }
+        password: { type: string }
+
+    LoginResponse:
+      type: object
+      required: [token, user]
+      properties:
+        token: { type: string }
+        user: { $ref: "#/components/schemas/User" }
+
+    CreateClaimRequest:
+      type: object
+      required: [beneficiary_type, service_type_id, requested_amount, receipt_date]
+      properties:
+        employee_id:
+          type: string
+          format: uuid
+          nullable: true
+          description: Admins may file for any employee; employees are forced to their own.
+        beneficiary_type: { $ref: "#/components/schemas/BeneficiaryType" }
+        dependent_id: { type: string, format: uuid, nullable: true }
+        service_type_id: { type: string, format: uuid }
+        requested_amount: { type: number }
+        receipt_date: { type: string, format: date-time }
+        description: { type: string }
+
+    ReasonRequest:
+      type: object
+      required: [reason]
+      properties:
+        reason: { type: string }
+
+    CreateEmployeeRequest:
+      type: object
+      required: [personnel_no, full_name, hire_date]
+      properties:
+        personnel_no: { type: string }
+        full_name: { type: string }
+        national_id: { type: string }
+        hire_date: { type: string, format: date-time }
+        department: { type: string }
+        plan_id: { type: string, format: uuid, nullable: true }
+
+    UpdateEmployeeRequest:
+      type: object
+      properties:
+        employment_status: { $ref: "#/components/schemas/EmploymentStatus" }
+        plan_id: { type: string, format: uuid, nullable: true }
+        department: { type: string }
+        full_name: { type: string }
+
+    CreateDependentRequest:
+      type: object
+      required: [full_name, relation]
+      properties:
+        full_name: { type: string }
+        relation: { $ref: "#/components/schemas/Relation" }
+        national_id: { type: string }
+        birth_date: { type: string, format: date-time, nullable: true }
+
+    CreateContractRequest:
+      type: object
+      required: [name, start_date, end_date]
+      properties:
+        name: { type: string }
+        start_date: { type: string, format: date-time }
+        end_date: { type: string, format: date-time }
+        is_active: { type: boolean }
+
+    CreatePlanRequest:
+      type: object
+      required: [contract_id, name]
+      properties:
+        contract_id: { type: string, format: uuid }
+        name: { type: string }
+        description: { type: string }
+
+    CreateCoverageRuleRequest:
+      type: object
+      required: [plan_id, service_type_id, coverage_percent, eligible_relations, effective_from]
+      properties:
+        plan_id: { type: string, format: uuid }
+        service_type_id: { type: string, format: uuid }
+        coverage_percent: { type: number }
+        per_claim_cap: { type: number, nullable: true }
+        annual_cap: { type: number, nullable: true }
+        waiting_period_days: { type: integer }
+        eligible_relations:
+          type: array
+          items: { $ref: "#/components/schemas/Relation" }
+        effective_from: { type: string, format: date-time }
+
+    CreateUserRequest:
+      type: object
+      required: [username, password, full_name, role]
+      properties:
+        username: { type: string }
+        password: { type: string }
+        full_name: { type: string }
+        role: { $ref: "#/components/schemas/Role" }
+        employee_id: { type: string, format: uuid, nullable: true }
+
+    UpdateUserRequest:
+      type: object
+      properties:
+        role: { $ref: "#/components/schemas/Role" }
+        is_active: { type: boolean }
+        password: { type: string }
+
+    SyncEmployeesRequest:
+      type: object
+      required: [employees]
+      properties:
+        employees:
+          type: array
+          items:
+            type: object
+            required: [personnel_no, full_name, employment_status, hire_date]
+            properties:
+              personnel_no: { type: string }
+              full_name: { type: string }
+              national_id: { type: string }
+              employment_status: { $ref: "#/components/schemas/EmploymentStatus" }
+              hire_date: { type: string, format: date-time }
+              department: { type: string }
+              plan_id: { type: string, format: uuid, nullable: true }
+
+    SyncEmployeesResponse:
+      type: object
+      required: [created, updated]
+      properties:
+        created: { type: integer }
+        updated: { type: integer }
+
+    IntegrationClaimStatus:
+      type: object
+      required: [id, status, payable_amount]
+      properties:
+        id: { type: string, format: uuid }
+        status: { $ref: "#/components/schemas/ClaimStatus" }
+        payable_amount: { type: number, nullable: true }
+
+paths:
+  /auth/login:
+    post:
+      operationId: login
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/LoginRequest" }
+      responses:
+        "200":
+          description: Authenticated.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LoginResponse" }
+        default: { $ref: "#/components/responses/Error" }
+
+  /auth/me:
+    get:
+      operationId: me
+      responses:
+        "200":
+          description: The authenticated user.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/User" }
+        default: { $ref: "#/components/responses/Error" }
+
+  /service-types:
+    get:
+      operationId: listServiceTypes
+      responses:
+        "200":
+          description: All service types.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/ServiceType" }
+        default: { $ref: "#/components/responses/Error" }
+
+  /contracts:
+    get:
+      operationId: listContracts
+      responses:
+        "200":
+          description: All insurance contracts.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/InsuranceContract" }
+        default: { $ref: "#/components/responses/Error" }
+    post:
+      operationId: createContract
+      description: Admin only.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreateContractRequest" }
+      responses:
+        "201":
+          description: Created.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/InsuranceContract" }
+        default: { $ref: "#/components/responses/Error" }
+
+  /plans:
+    get:
+      operationId: listPlans
+      parameters:
+        - name: contract_id
+          in: query
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Coverage plans.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/CoveragePlan" }
+        default: { $ref: "#/components/responses/Error" }
+    post:
+      operationId: createPlan
+      description: Admin only.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreatePlanRequest" }
+      responses:
+        "201":
+          description: Created.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CoveragePlan" }
+        default: { $ref: "#/components/responses/Error" }
+
+  /coverage-rules:
+    get:
+      operationId: listCoverageRules
+      description: Full version history, newest effective_from first.
+      parameters:
+        - name: plan_id
+          in: query
+          schema: { type: string, format: uuid }
+        - name: service_type_id
+          in: query
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Rule versions.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/CoverageRule" }
+        default: { $ref: "#/components/responses/Error" }
+    post:
+      operationId: createCoverageRule
+      description: >
+        Admin only. THE config-driven policy change: atomically closes the
+        previous open version for (plan, service type) — clamped on same-day
+        re-publish — inserts the new version, and records a config_change
+        audit entry. Benefits change with no code deploy.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreateCoverageRuleRequest" }
+      responses:
+        "201":
+          description: The new active rule version.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CoverageRule" }
+        default: { $ref: "#/components/responses/Error" }
+
+  /employees:
+    get:
+      operationId: listEmployees
+      description: Staff (admin, reviewer).
+      parameters:
+        - name: q
+          in: query
+          description: Matches full name or personnel number.
+          schema: { type: string }
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/PageSize"
+      responses:
+        "200":
+          description: Employee page.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EmployeeList" }
+        default: { $ref: "#/components/responses/Error" }
+    post:
+      operationId: createEmployee
+      description: Admin only.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreateEmployeeRequest" }
+      responses:
+        "201":
+          description: Created.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Employee" }
+        default: { $ref: "#/components/responses/Error" }
+
+  /employees/{id}:
+    get:
+      operationId: getEmployee
+      description: Staff, or the employee's own linked account.
+      parameters: [{ $ref: "#/components/parameters/ClaimID" }]
+      responses:
+        "200":
+          description: The employee.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Employee" }
+        default: { $ref: "#/components/responses/Error" }
+    patch:
+      operationId: updateEmployee
+      description: Admin only. Partial update.
+      parameters: [{ $ref: "#/components/parameters/ClaimID" }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/UpdateEmployeeRequest" }
+      responses:
+        "200":
+          description: Updated.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Employee" }
+        default: { $ref: "#/components/responses/Error" }
+
+  /employees/{id}/dependents:
+    get:
+      operationId: listDependents
+      description: Staff or self.
+      parameters: [{ $ref: "#/components/parameters/ClaimID" }]
+      responses:
+        "200":
+          description: Dependents of the employee.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Dependent" }
+        default: { $ref: "#/components/responses/Error" }
+    post:
+      operationId: createDependent
+      description: Admin only.
+      parameters: [{ $ref: "#/components/parameters/ClaimID" }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreateDependentRequest" }
+      responses:
+        "201":
+          description: Created.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Dependent" }
+        default: { $ref: "#/components/responses/Error" }
+
+  /employees/{id}/remaining-caps:
+    get:
+      operationId: remainingCaps
+      description: >
+        Staff or self. One entry per service type with an active rule under
+        the employee's plan; empty when no plan is assigned.
+      parameters: [{ $ref: "#/components/parameters/ClaimID" }]
+      responses:
+        "200":
+          description: Remaining annual caps.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/RemainingCap" }
+        default: { $ref: "#/components/responses/Error" }
+
+  /claims:
+    get:
+      operationId: listClaims
+      description: Employees see only their own claims; staff and auditors see all.
+      parameters:
+        - name: status
+          in: query
+          schema: { $ref: "#/components/schemas/ClaimStatus" }
+        - name: employee_id
+          in: query
+          schema: { type: string, format: uuid }
+        - name: service_type_id
+          in: query
+          schema: { type: string, format: uuid }
+        - $ref: "#/components/parameters/FromDate"
+        - $ref: "#/components/parameters/ToDate"
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/PageSize"
+      responses:
+        "200":
+          description: Claim page.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ClaimList" }
+        default: { $ref: "#/components/responses/Error" }
+    post:
+      operationId: createClaim
+      description: Employee (self) or admin (any employee). Creates a draft.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreateClaimRequest" }
+      responses:
+        "201":
+          description: The draft claim.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Claim" }
+        default: { $ref: "#/components/responses/Error" }
+
+  /claims/{id}:
+    get:
+      operationId: getClaim
+      description: Owner, staff, or auditor.
+      parameters: [{ $ref: "#/components/parameters/ClaimID" }]
+      responses:
+        "200":
+          description: The claim.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Claim" }
+        default: { $ref: "#/components/responses/Error" }
+
+  /claims/{id}/history:
+    get:
+      operationId: claimHistory
+      description: Audit trail of one claim, newest first.
+      parameters: [{ $ref: "#/components/parameters/ClaimID" }]
+      responses:
+        "200":
+          description: Audit entries.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/AuditLog" }
+        default: { $ref: "#/components/responses/Error" }
+
+  /claims/{id}/submit:
+    post:
+      operationId: submitClaim
+      description: "Owner or admin. draft → submitted."
+      parameters: [{ $ref: "#/components/parameters/ClaimID" }]
+      responses:
+        "200":
+          description: The updated claim.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Claim" }
+        default: { $ref: "#/components/responses/Error" }
+
+  /claims/{id}/resubmit:
+    post:
+      operationId: resubmitClaim
+      description: "Owner or admin. returned_for_docs → submitted."
+      parameters: [{ $ref: "#/components/parameters/ClaimID" }]
+      responses:
+        "200":
+          description: The updated claim.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Claim" }
+        default: { $ref: "#/components/responses/Error" }
+
+  /claims/{id}/start-review:
+    post:
+      operationId: startReview
+      description: "Staff. submitted → under_review."
+      parameters: [{ $ref: "#/components/parameters/ClaimID" }]
+      responses:
+        "200":
+          description: The updated claim.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Claim" }
+        default: { $ref: "#/components/responses/Error" }
+
+  /claims/{id}/approve:
+    post:
+      operationId: approveClaim
+      description: >
+        Staff. under_review → approved. Prices the claim against the active
+        coverage rule automatically (percent, per-claim cap, remaining annual
+        cap); the response carries coverage_percent_applied and payable_amount.
+      parameters: [{ $ref: "#/components/parameters/ClaimID" }]
+      responses:
+        "200":
+          description: The priced, approved claim.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Claim" }
+        default: { $ref: "#/components/responses/Error" }
+
+  /claims/{id}/reject:
+    post:
+      operationId: rejectClaim
+      description: "Staff. under_review → rejected. Reason is mandatory."
+      parameters: [{ $ref: "#/components/parameters/ClaimID" }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ReasonRequest" }
+      responses:
+        "200":
+          description: The rejected claim.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Claim" }
+        default: { $ref: "#/components/responses/Error" }
+
+  /claims/{id}/return-for-docs:
+    post:
+      operationId: returnClaimForDocs
+      description: "Staff. under_review → returned_for_docs. Reason is mandatory."
+      parameters: [{ $ref: "#/components/parameters/ClaimID" }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ReasonRequest" }
+      responses:
+        "200":
+          description: The returned claim.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Claim" }
+        default: { $ref: "#/components/responses/Error" }
+
+  /claims/{id}/mark-paid:
+    post:
+      operationId: markClaimPaid
+      description: "Staff. approved → paid. Records a simulated payment."
+      parameters: [{ $ref: "#/components/parameters/ClaimID" }]
+      responses:
+        "200":
+          description: The paid claim.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Claim" }
+        default: { $ref: "#/components/responses/Error" }
+
+  /claims/{id}/close:
+    post:
+      operationId: closeClaim
+      description: "Staff. rejected | paid → closed."
+      parameters: [{ $ref: "#/components/parameters/ClaimID" }]
+      responses:
+        "200":
+          description: The closed claim.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Claim" }
+        default: { $ref: "#/components/responses/Error" }
+
+  /audit-logs:
+    get:
+      operationId: listAuditLogs
+      description: Admin or auditor.
+      parameters:
+        - name: entity_type
+          in: query
+          schema: { type: string }
+        - name: entity_id
+          in: query
+          schema: { type: string }
+        - name: actor_user_id
+          in: query
+          schema: { type: string, format: uuid }
+        - name: action
+          in: query
+          schema: { type: string }
+        - $ref: "#/components/parameters/FromDate"
+        - $ref: "#/components/parameters/ToDate"
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/PageSize"
+      responses:
+        "200":
+          description: Audit page.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AuditLogList" }
+        default: { $ref: "#/components/responses/Error" }
+
+  /reports/summary:
+    get:
+      operationId: reportSummary
+      description: Admin or auditor.
+      parameters:
+        - $ref: "#/components/parameters/FromDate"
+        - $ref: "#/components/parameters/ToDate"
+      responses:
+        "200":
+          description: Dashboard summary.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ReportSummary" }
+        default: { $ref: "#/components/responses/Error" }
+
+  /reports/spend-by-employee:
+    get:
+      operationId: reportSpendByEmployee
+      description: Admin or auditor.
+      parameters:
+        - $ref: "#/components/parameters/FromDate"
+        - $ref: "#/components/parameters/ToDate"
+      responses:
+        "200":
+          description: Committed spend per employee.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/EmployeeSpend" }
+        default: { $ref: "#/components/responses/Error" }
+
+  /reports/spend-by-service-type:
+    get:
+      operationId: reportSpendByServiceType
+      description: Admin or auditor. Names prefer the Persian service-type name.
+      parameters:
+        - $ref: "#/components/parameters/FromDate"
+        - $ref: "#/components/parameters/ToDate"
+      responses:
+        "200":
+          description: Committed spend per service type.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/ServiceTypeSpend" }
+        default: { $ref: "#/components/responses/Error" }
+
+  /reports/spend-by-month:
+    get:
+      operationId: reportSpendByMonth
+      description: Admin or auditor. Buckets by Gregorian YYYY-MM of receipt date.
+      parameters:
+        - $ref: "#/components/parameters/FromDate"
+        - $ref: "#/components/parameters/ToDate"
+      responses:
+        "200":
+          description: Committed spend per month.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/MonthSpend" }
+        default: { $ref: "#/components/responses/Error" }
+
+  /admin/users:
+    get:
+      operationId: listUsers
+      description: Admin only.
+      responses:
+        "200":
+          description: All users.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/User" }
+        default: { $ref: "#/components/responses/Error" }
+    post:
+      operationId: createUser
+      description: Admin only.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreateUserRequest" }
+      responses:
+        "201":
+          description: Created.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/User" }
+        default: { $ref: "#/components/responses/Error" }
+
+  /admin/users/{id}:
+    patch:
+      operationId: updateUser
+      description: Admin only. Partial update (role / active / password).
+      parameters: [{ $ref: "#/components/parameters/ClaimID" }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/UpdateUserRequest" }
+      responses:
+        "200":
+          description: Updated.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/User" }
+        default: { $ref: "#/components/responses/Error" }
+
+  /integration/employees/sync:
+    post:
+      operationId: syncEmployees
+      description: Parent-system bulk upsert by personnel_no. API-key auth.
+      security:
+        - apiKey: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SyncEmployeesRequest" }
+      responses:
+        "200":
+          description: Upsert counts.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SyncEmployeesResponse" }
+        default: { $ref: "#/components/responses/Error" }
+
+  /integration/claims/{id}/status:
+    get:
+      operationId: integrationClaimStatus
+      description: Minimal claim status view for the parent system. API-key auth.
+      security:
+        - apiKey: []
+      parameters: [{ $ref: "#/components/parameters/ClaimID" }]
+      responses:
+        "200":
+          description: Claim status.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/IntegrationClaimStatus" }
+        default: { $ref: "#/components/responses/Error" }

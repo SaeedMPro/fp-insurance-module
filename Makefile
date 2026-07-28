@@ -24,15 +24,27 @@ seed: ## Run the demo-data seeder against the compose postgres
 test: ## Run backend Go tests (integration tests skip if no DB is reachable)
 	cd backend && go test ./...
 
-test-integration: ## Run backend tests against a disposable, migrated Postgres (port 15432)
-	docker rm -f fp-test-pg >/dev/null 2>&1 || true
-	docker run --rm -d --name fp-test-pg -e POSTGRES_USER=insurance -e POSTGRES_PASSWORD=insurance \
-	  -e POSTGRES_DB=insurance -p 15432:5432 postgres:16-alpine >/dev/null
-	until docker exec fp-test-pg pg_isready -U insurance -d insurance >/dev/null 2>&1; do sleep 1; done
+TEST_PGDIR  := /tmp/insurance-test-pg
+TEST_PGPORT := 15433
+TEST_DSN    := postgres://insurance@127.0.0.1:$(TEST_PGPORT)/insurance?sslmode=disable
+
+test-integration: ## Run backend tests against a disposable, migrated Postgres
+	# Uses a throwaway host-native cluster (initdb/pg_ctl, no root, no Docker):
+	# works even where Docker port publishing is unavailable. CI uses its own
+	# postgres service container and just sets TEST_DATABASE_URL instead.
+	@pg_ctl -D $(TEST_PGDIR)/data stop >/dev/null 2>&1 || true
+	rm -rf $(TEST_PGDIR) && mkdir -p $(TEST_PGDIR)/data $(TEST_PGDIR)/sock
+	initdb -D $(TEST_PGDIR)/data -U insurance --auth=trust >/dev/null
+	# -k keeps the unix socket inside the throwaway dir: the system default
+	# (/run/postgresql) is not writable for a non-root cluster.
+	pg_ctl -D $(TEST_PGDIR)/data -l $(TEST_PGDIR)/log \
+	  -o "-p $(TEST_PGPORT) -k $(TEST_PGDIR)/sock -c listen_addresses=127.0.0.1" start >/dev/null
+	@until pg_isready -h 127.0.0.1 -p $(TEST_PGPORT) -U insurance >/dev/null 2>&1; do sleep 1; done
+	createdb -h 127.0.0.1 -p $(TEST_PGPORT) -U insurance insurance
 	cd backend && go run -tags 'postgres' github.com/golang-migrate/migrate/v4/cmd/migrate@v4.19.1 \
-	  -path migrations -database "postgres://insurance:insurance@localhost:15432/insurance?sslmode=disable" up
-	cd backend && TEST_DATABASE_URL="postgres://insurance:insurance@localhost:15432/insurance?sslmode=disable" \
-	  go test ./... -count=1; status=$$?; docker rm -f fp-test-pg >/dev/null; exit $$status
+	  -path migrations -database "$(TEST_DSN)" up
+	cd backend && TEST_DATABASE_URL="$(TEST_DSN)" go test ./... -count=1; \
+	  status=$$?; pg_ctl -D $(TEST_PGDIR)/data stop >/dev/null 2>&1; exit $$status
 
 lint: ## Run golangci-lint (backend) and oxlint (frontend)
 	cd backend && golangci-lint run

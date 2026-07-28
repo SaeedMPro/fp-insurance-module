@@ -41,7 +41,10 @@ jobs:
           go run -tags 'postgres' github.com/golang-migrate/migrate/v4/cmd/migrate@v4.19.1 \
             -path migrations \
             -database "postgres://insurance:insurance@localhost:5432/insurance?sslmode=disable" up
-      - name: Test (unit + integration)
+      - name: Test (unit + integration + OpenAPI conformance)
+        # Includes TestOpenAPIConformance / TestOpenAPISpecCoversEveryRoute, which
+        # validate live responses against backend/api/openapi.yaml and fail if any
+        # served route is undocumented (ADR-0002).
         env:
           TEST_DATABASE_URL: postgres://insurance:insurance@localhost:5432/insurance?sslmode=disable
         run: go test ./... -count=1
@@ -60,6 +63,15 @@ jobs:
           cache: npm
           cache-dependency-path: frontend/package-lock.json
       - run: npm ci
+      - name: API types are in sync with the OpenAPI spec
+        # The spec (backend/api/openapi.yaml) is the source of truth — ADR-0002.
+        # Regenerate and fail if the checked-in schema drifted.
+        run: |
+          npm run gen:api
+          git diff --exit-code --stat src/api/schema.d.ts || {
+            echo "::error::src/api/schema.d.ts is stale. Run 'npm run gen:api' and commit the result."
+            exit 1
+          }
       - run: npm run lint
       - run: npm run build   # tsc -b && vite build
 

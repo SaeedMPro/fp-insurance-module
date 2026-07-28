@@ -3,6 +3,8 @@ package http
 import (
 	"log/slog"
 	"net/http"
+	"sort"
+	"strings"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -49,7 +51,26 @@ type Services struct {
 	Integration *integration.Service
 }
 
-// NewRouter assembles the REST API described in docs/API-CONTRACT.md.
+// Routes lists every "METHOD /path" the router serves, in sorted order. It
+// exists so tests can assert that the OpenAPI document (backend/api/openapi.yaml)
+// documents the whole surface — the spec cannot silently fall behind the code.
+func Routes() []string {
+	handler := NewRouter(Config{}, Services{})
+	router, ok := handler.(chi.Routes)
+	if !ok {
+		return nil
+	}
+	var out []string
+	_ = chi.Walk(router, func(method, route string, _ http.Handler, _ ...func(http.Handler) http.Handler) error {
+		// chi reports subrouter mounts with a trailing "/*"; normalise.
+		out = append(out, method+" "+strings.TrimSuffix(route, "/*"))
+		return nil
+	})
+	sort.Strings(out)
+	return out
+}
+
+// NewRouter assembles the REST API described by backend/api/openapi.yaml.
 func NewRouter(cfg Config, svcs Services) http.Handler {
 	s := &Server{
 		users:       svcs.Users,
