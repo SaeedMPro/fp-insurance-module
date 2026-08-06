@@ -2,33 +2,11 @@ import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/useAuth'
 import { useTheme } from '../hooks/useTheme'
 import type { ThemePref } from '../hooks/useTheme'
-import type { Role } from '../api/types'
+import { navFor } from '../app/routes'
 import { ROLE_LABELS } from '../lib/format'
 
-interface NavItem {
-  to: string
-  label: string
-  roles: Role[]
-}
-
-// The document is dir="rtl" (see index.html), so flex/grid and logical
-// utilities (border-e, ps-, text-start, …) place the sidebar on the right
-// automatically. Labels are Persian.
-const NAV_ITEMS: NavItem[] = [
-  { to: '/claims', label: 'درخواست‌های من', roles: ['employee'] },
-  { to: '/claims/new', label: 'ثبت درخواست جدید', roles: ['employee'] },
-  { to: '/my-coverage', label: 'پوشش بیمه‌ای من', roles: ['employee'] },
-  { to: '/claims', label: 'کارتابل بررسی', roles: ['reviewer'] },
-  { to: '/claims', label: 'همه درخواست‌ها', roles: ['admin'] },
-  { to: '/employees', label: 'کارکنان', roles: ['admin', 'reviewer'] },
-  { to: '/coverage-rules', label: 'قوانین پوشش', roles: ['admin'] },
-  { to: '/contracts', label: 'قراردادها', roles: ['admin'] },
-  { to: '/plans', label: 'طرح‌های پوشش', roles: ['admin'] },
-  { to: '/users', label: 'کاربران', roles: ['admin'] },
-  { to: '/reports', label: 'گزارش‌ها', roles: ['admin', 'auditor'] },
-  { to: '/audit-logs', label: 'تاریخچه اقدامات', roles: ['admin', 'auditor'] },
-]
-
+// Nav items come from app/routes.ts — the single place that knows which role
+// sees which screen (it also drives the router's guards).
 const THEME_OPTIONS: { value: ThemePref; label: string }[] = [
   { value: 'light', label: 'روشن' },
   { value: 'dark', label: 'تیره' },
@@ -42,7 +20,7 @@ export function Layout() {
 
   if (!user) return null
 
-  const items = NAV_ITEMS.filter((item) => item.roles.includes(user.role))
+  const items = navFor(user.role)
 
   function handleLogout() {
     logout()
