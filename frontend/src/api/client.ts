@@ -1,5 +1,7 @@
 import axios from 'axios'
 
+import { translateApiError } from '../lib/errorMessages'
+
 const baseURL =
   (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? 'http://localhost:8080/api/v1'
 
@@ -59,12 +61,21 @@ client.interceptors.response.use(
   },
 )
 
+/**
+ * The user-facing message for any failure. The API answers in English (it is a
+ * machine contract, also consumed by the parent system), so translation happens
+ * here — see lib/errorMessages.ts.
+ */
 export function apiErrorMessage(err: unknown): string {
   if (axios.isAxiosError(err)) {
     const data = err.response?.data as { error?: string } | undefined
-    if (data?.error) return data.error
-    if (err.message) return err.message
+    if (data?.error) return translateApiError(data.error)
+    // No response at all: the API is unreachable or the request timed out.
+    if (err.code === 'ERR_NETWORK' || err.code === 'ECONNABORTED') {
+      return 'ارتباط با سرور برقرار نشد؛ دوباره تلاش کنید.'
+    }
+    if (err.message) return translateApiError(err.message)
   }
-  if (err instanceof Error) return err.message
-  return 'Unexpected error'
+  if (err instanceof Error) return translateApiError(err.message)
+  return 'خطای پیش‌بینی‌نشده.'
 }
