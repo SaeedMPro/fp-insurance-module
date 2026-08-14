@@ -74,7 +74,7 @@ fi
 say "starting Vite dev server on :$WEB_PORT"
 cd "$ROOT/frontend"
 [ -d node_modules ] || npm install --silent
-VITE_API_BASE_URL="http://localhost:$API_PORT/api/v1" \
+API_PROXY_TARGET="http://localhost:$API_PORT" \
   nohup npm run dev -- --port "$WEB_PORT" --strictPort >"$RUN_DIR/web.log" 2>&1 &
 echo $! >"$RUN_DIR/web.pid"
 

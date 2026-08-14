@@ -56,7 +56,7 @@ backend/
     seed.sql          contracts, plans, service types, coverage rules
   internal/           layered Go packages (domain, service, storage, transport)
 frontend/             React + TypeScript SPA (pages per role)
-deploy/               docker-compose.yml + env example
+docker-compose.yml    postgres + backend + frontend stack
 docs/                 API contract, architecture, ERD, use cases
 Makefile              up / down / logs / seed / test / build-* targets
 ```
@@ -66,7 +66,6 @@ Makefile              up / down / logs / seed / test / build-* targets
 Requires Docker and Docker Compose.
 
 ```bash
-cp deploy/.env.example deploy/.env    # optional; sensible defaults exist
 make up                               # build images, start postgres + backend + frontend
 make seed                             # load reference data from db/seed.sql (run once)
 ```
@@ -83,14 +82,15 @@ Reference data lives in `db/seed.sql` and is applied manually with `make seed`
 
 > **Port conflicts.** The compose file uses host ports `5173` (frontend), `8080`
 > (backend), and `5432` (postgres) by default. If any are already in use, the
-> ready-made overlay [deploy/docker-compose.altports.yml](deploy/docker-compose.altports.yml)
+> ready-made overlay [docker-compose.altports.yml](docker-compose.altports.yml)
 > remaps to `15173`/`18080` (and unexposes postgres):
 >
 > ```bash
-> VITE_API_BASE_URL=http://localhost:18080/api/v1 CORS_ORIGIN=http://localhost:15173 \
->   docker compose -f deploy/docker-compose.yml -f deploy/docker-compose.altports.yml up -d --build
+> docker compose -f docker-compose.yml -f docker-compose.altports.yml up -d --build
 > ```
-
+>
+> Open http://localhost:15173 — the SPA still calls `/api` on the same origin
+> (nginx proxies to the backend). Direct API access is on http://localhost:18080.
 ## Development (without Docker)
 
 ```bash

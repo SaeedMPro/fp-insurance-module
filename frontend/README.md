@@ -20,9 +20,9 @@ npm install
 npm run dev        # http://localhost:5173
 ```
 
-Configure the API base URL with `VITE_API_BASE_URL` (see `.env.example`); it defaults
-to `http://localhost:8080/api/v1`. Because Vite inlines env vars at build time, the
-Docker image takes this as a build argument (see `Dockerfile`).
+Configure nothing for the API URL: the client uses relative `/api/v1`. Vite
+proxies that to `http://localhost:8080` in dev; the Docker nginx image proxies
+it to the `backend` service at runtime.
 
 ```bash
 npm run build      # type-check (tsc -b) + production build to dist/

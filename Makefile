@@ -1,4 +1,4 @@
-COMPOSE := docker compose -f deploy/docker-compose.yml
+COMPOSE := docker compose
 
 .PHONY: up down logs seed test test-integration lint e2e build-frontend build-backend
 

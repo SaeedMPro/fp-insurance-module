@@ -39,10 +39,10 @@ func TestOpenAPIConformance(t *testing.T) {
 	svcs := app.Build(store, app.Options{JWTSecret: secret, JWTTTL: time.Hour})
 
 	const (
-		adminUser  = "oa-admin"
-		adminPass  = "Admin123!"
-		empUser    = "oa-employee"
-		empPass    = "Employee123!"
+		adminUser = "oa-admin"
+		adminPass = "Admin123!"
+		empUser   = "oa-employee"
+		empPass   = "Employee123!"
 	)
 	employeeID, claimID := setupConformanceData(t, ctx, store, svcs, adminUser, adminPass, empUser, empPass)
 

@@ -18,7 +18,7 @@ services:
 
   backend:
     build:
-      context: ../backend
+      context: ./backend
       dockerfile: Dockerfile
     restart: unless-stopped
     depends_on:
@@ -34,16 +34,13 @@ services:
       JWT_SECRET: ${JWT_SECRET:-change-me-in-prod}
       JWT_TTL: 8h
       DB_INIT_PATH: /app/db/init.sql
-      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:5173}
     ports:
       - "8080:8080"
 
   frontend:
     build:
-      context: ../frontend
+      context: ./frontend
       dockerfile: Dockerfile
-      args:
-        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost:8080/api/v1}
     restart: unless-stopped
     depends_on:
       - backend

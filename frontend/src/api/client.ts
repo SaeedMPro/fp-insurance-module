@@ -2,8 +2,9 @@ import axios from 'axios'
 
 import { translateApiError } from '../lib/errorMessages'
 
-const baseURL =
-  (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? 'http://localhost:8080/api/v1'
+// Relative URL: Vite (dev) and nginx (Docker) proxy /api to the backend, so the
+// API host is never baked into the frontend build.
+const baseURL = '/api/v1'
 
 export const client = axios.create({ baseURL })
 
