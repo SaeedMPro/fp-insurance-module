@@ -1,7 +1,7 @@
 # Entity-Relationship Diagram — Supplementary Insurance Module
 
-Derived directly from `backend/migrations/000001_init.up.sql` (schema) and
-`backend/migrations/000002_seed_reference_data.up.sql` (reference data).
+Derived directly from `backend/db/init.sql` (schema) and
+`backend/db/seed.sql` (reference data).
 Field lists below are abbreviated to primary/foreign keys and the fields
 that matter for understanding the model; see the migration file for the
 exact column list, types, defaults, and CHECK constraints.

@@ -1,29 +1,55 @@
-// Package database owns schema migrations. Connections are opened by
-// storage/postgres.Open — migrations run first, against the same URL, via
-// golang-migrate: the SQL files in backend/migrations are the single source
-// of truth for schema, and GORM never auto-migrates anything.
+// Package database applies the schema SQL file. Connections are opened by
+// storage/postgres.Open — schema init runs first, against the same URL.
+// Reference data is applied manually via Makefile (psql + db/seed.sql).
+// GORM never auto-migrates anything.
 package database
 
 import (
-	"errors"
+	"database/sql"
 	"fmt"
+	"os"
 
-	"github.com/golang-migrate/migrate/v4"
-	_ "github.com/golang-migrate/migrate/v4/database/postgres"
-	_ "github.com/golang-migrate/migrate/v4/source/file"
+	_ "github.com/lib/pq"
 )
 
-// Migrate applies all pending up-migrations found under migrationsPath
-// (e.g. "file://migrations") to databaseURL.
-func Migrate(databaseURL, migrationsPath string) error {
-	m, err := migrate.New(migrationsPath, databaseURL)
+// InitSchema runs init.sql once when the claims table is missing.
+func InitSchema(databaseURL, initPath string) error {
+	db, err := sql.Open("postgres", databaseURL)
 	if err != nil {
-		return fmt.Errorf("init migrator: %w", err)
+		return fmt.Errorf("open db: %w", err)
 	}
-	defer func() { _, _ = m.Close() }()
+	defer db.Close()
 
-	if err := m.Up(); err != nil && !errors.Is(err, migrate.ErrNoChange) {
-		return fmt.Errorf("run migrations: %w", err)
+	exists, err := tableExists(db, "claims")
+	if err != nil {
+		return err
+	}
+	if exists {
+		return nil
+	}
+	return execFile(db, initPath)
+}
+
+func tableExists(db *sql.DB, name string) (bool, error) {
+	var exists bool
+	err := db.QueryRow(`
+		SELECT EXISTS (
+			SELECT 1 FROM information_schema.tables
+			WHERE table_schema = 'public' AND table_name = $1
+		)`, name).Scan(&exists)
+	if err != nil {
+		return false, fmt.Errorf("check table %s: %w", name, err)
+	}
+	return exists, nil
+}
+
+func execFile(db *sql.DB, path string) error {
+	body, err := os.ReadFile(path)
+	if err != nil {
+		return fmt.Errorf("read %s: %w", path, err)
+	}
+	if _, err := db.Exec(string(body)); err != nil {
+		return fmt.Errorf("exec %s: %w", path, err)
 	}
 	return nil
 }

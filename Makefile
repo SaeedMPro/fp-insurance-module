@@ -11,15 +11,13 @@ down: ## Stop and remove the stack
 logs: ## Follow logs from all services
 	$(COMPOSE) logs -f
 
-# The backend applies its own DB migrations automatically on boot
-# (see backend/cmd/api/main.go -> db.Migrate), so there is no separate
-# migrate target here.
+# The backend applies db/init.sql automatically on boot when the schema is
+# missing (see backend/cmd/api). Reference data (db/seed.sql) is manual.
 
-seed: ## Run the demo-data seeder against the compose postgres
-	# cmd/seed is baked into the backend image alongside cmd/api (see
-	# backend/Dockerfile), so we just exec it in the already-running
-	# backend container -- no separate build or extra container needed.
-	$(COMPOSE) exec backend /app/seed
+seed: ## Apply backend/db/seed.sql (reference data; run once on empty DB)
+	$(COMPOSE) exec -T postgres \
+	  psql -U insurance -d insurance -v ON_ERROR_STOP=1 \
+	  < backend/db/seed.sql
 
 test: ## Run backend Go tests (integration tests skip if no DB is reachable)
 	cd backend && go test ./...
@@ -28,7 +26,7 @@ TEST_PGDIR  := /tmp/insurance-test-pg
 TEST_PGPORT := 15433
 TEST_DSN    := postgres://insurance@127.0.0.1:$(TEST_PGPORT)/insurance?sslmode=disable
 
-test-integration: ## Run backend tests against a disposable, migrated Postgres
+test-integration: ## Run backend tests against a disposable, initialized Postgres
 	# Uses a throwaway host-native cluster (initdb/pg_ctl, no root, no Docker):
 	# works even where Docker port publishing is unavailable. CI uses its own
 	# postgres service container and just sets TEST_DATABASE_URL instead.
@@ -41,8 +39,8 @@ test-integration: ## Run backend tests against a disposable, migrated Postgres
 	  -o "-p $(TEST_PGPORT) -k $(TEST_PGDIR)/sock -c listen_addresses=127.0.0.1" start >/dev/null
 	@until pg_isready -h 127.0.0.1 -p $(TEST_PGPORT) -U insurance >/dev/null 2>&1; do sleep 1; done
 	createdb -h 127.0.0.1 -p $(TEST_PGPORT) -U insurance insurance
-	cd backend && go run -tags 'postgres' github.com/golang-migrate/migrate/v4/cmd/migrate@v4.19.1 \
-	  -path migrations -database "$(TEST_DSN)" up
+	psql "$(TEST_DSN)" -v ON_ERROR_STOP=1 -f backend/db/init.sql
+	psql "$(TEST_DSN)" -v ON_ERROR_STOP=1 -f backend/db/seed.sql
 	cd backend && TEST_DATABASE_URL="$(TEST_DSN)" go test ./... -count=1; \
 	  status=$$?; pg_ctl -D $(TEST_PGDIR)/data stop >/dev/null 2>&1; exit $$status
 

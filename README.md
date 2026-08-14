@@ -42,7 +42,7 @@ redeployment**.
 | Layer     | Technology |
 |-----------|------------|
 | Backend   | Go 1.26, chi router, GORM (query only), golang-jwt, bcrypt |
-| Database  | PostgreSQL 16, schema owned by golang-migrate SQL migrations |
+| Database  | PostgreSQL 16, schema in `backend/db/init.sql`, reference data in `backend/db/seed.sql` |
 | Frontend  | React 19 + TypeScript, Vite, Tailwind CSS, React Router, Recharts, axios; **Persian (Farsi) RTL UI** with the Vazirmatn font |
 | Deploy    | Docker + Docker Compose (postgres + backend + nginx-served frontend) |
 
@@ -50,19 +50,11 @@ redeployment**.
 
 ```
 backend/
-  cmd/api/            HTTP server entrypoint (runs migrations, then serves)
-  cmd/seed/           idempotent demo-data seeder
-  internal/
-    config/           env-based configuration
-    db/               postgres connection + migration runner
-    models/           GORM entities (JSON tags = the API wire format)
-    ruleengine/       config-driven coverage/cap calculation  (unit + integration tests)
-    workflow/         claim state machine + audit-on-transition (integration tests)
-    audit/            generic audit-trail service
-    auth/             password hashing + JWT
-    api/              router, RBAC middleware, and resource handlers
-    reports/          aggregation queries
-  migrations/         SQL schema + seed reference data (source of truth for schema)
+  cmd/api/            HTTP server entrypoint (applies db/init.sql, then serves)
+  db/
+    init.sql          schema (source of truth)
+    seed.sql          contracts, plans, service types, coverage rules
+  internal/           layered Go packages (domain, service, storage, transport)
 frontend/             React + TypeScript SPA (pages per role)
 deploy/               docker-compose.yml + env example
 docs/                 API contract, architecture, ERD, use cases
@@ -76,7 +68,7 @@ Requires Docker and Docker Compose.
 ```bash
 cp deploy/.env.example deploy/.env    # optional; sensible defaults exist
 make up                               # build images, start postgres + backend + frontend
-make seed                             # load demo accounts and sample claims
+make seed                             # load reference data from db/seed.sql (run once)
 ```
 
 Then open:
@@ -84,8 +76,10 @@ Then open:
 - Frontend: http://localhost:5173
 - API:      http://localhost:8080/api/v1  (health: http://localhost:8080/healthz)
 
-The backend applies its database migrations automatically on boot, so there is no
-separate migrate step. `make down` stops the stack; `make logs` follows logs.
+The backend applies `db/init.sql` automatically on boot when the schema is missing.
+Reference data lives in `db/seed.sql` and is applied manually with `make seed`
+(not on boot). No demo users are seeded — create accounts yourself after seed.
+`make down` stops the stack; `make logs` follows logs.
 
 > **Port conflicts.** The compose file uses host ports `5173` (frontend), `8080`
 > (backend), and `5432` (postgres) by default. If any are already in use, the
@@ -97,25 +91,17 @@ separate migrate step. `make down` stops the stack; `make logs` follows logs.
 >   docker compose -f deploy/docker-compose.yml -f deploy/docker-compose.altports.yml up -d --build
 > ```
 
-### Demo accounts (after `make seed`)
-
-| Username      | Password       | Role     |
-|---------------|----------------|----------|
-| `admin`       | `Admin123!`    | admin    |
-| `reviewer`    | `Reviewer123!` | reviewer |
-| `auditor`     | `Auditor123!`  | auditor  |
-| `sara.ahmadi` | `Employee123!` | employee |
-| `reza.karimi` | `Employee123!` | employee |
-
 ## Development (without Docker)
 
 ```bash
 # Postgres (any local instance); point the app at it:
 export DATABASE_URL="postgres://insurance:insurance@localhost:5432/insurance?sslmode=disable"
 
-# Backend (migrates on boot):
+# Backend (applies db/init.sql on boot when schema is missing):
 cd backend && go run ./cmd/api
-go run ./cmd/seed          # demo data
+
+# Reference data (once, against the same database):
+psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f db/seed.sql
 
 # Frontend:
 cd frontend && npm install && npm run dev   # http://localhost:5173
@@ -147,11 +133,11 @@ real Persian UI through the complete lifecycle and asserts outcomes through the 
 4. RBAC denials (employee vs admin-only routes, anonymous requests);
 5. the audit trail (lifecycle actions + `config_change`) and the reports endpoints.
 
-It needs the stack up and seeded (`make up && make seed`), and a Chrome binary
-(`CHROME_PATH`, default `/usr/bin/google-chrome-stable`); `E2E_BASE_URL`/`E2E_API_URL`
-override the targets when using the alternate-ports overlay. The suite is idempotent —
-safe to run repeatedly against the same database (re-running also regression-tests
-same-day rule re-publishing). Failure screenshots land in `e2e/artifacts/`.
+It needs the stack up and reference data loaded (`make up && make seed`), plus
+login accounts you create yourself (demo users are no longer seeded), and a Chrome
+binary (`CHROME_PATH`, default `/usr/bin/google-chrome-stable`); `E2E_BASE_URL`/`E2E_API_URL`
+override the targets when using the alternate-ports overlay. Failure screenshots
+land in `e2e/artifacts/`.
 
 ## Documentation
 
@@ -200,5 +186,6 @@ future siblings of this module.
   consume cap.
 - Interactive users authenticate with JWT; the parent system uses a static API key
   whose SHA-256 hash is stored (never the raw key).
-- Seed data (one contract, Standard + Premium plans, five service types with rule
-  versions, demo users/employees/claims) is for demonstration and is safe to re-run.
+- Reference seed data in `db/seed.sql` (one contract, Standard + Premium plans,
+  five service types with rule versions) is applied manually with `make seed`.
+  It does not include demo users or claims; create those yourself.

@@ -1,5 +1,5 @@
 // Command api is the Supplementary Insurance Module's HTTP server. It is the
-// composition boundary: config → migrations → store → services (internal/app)
+// composition boundary: config → schema init → store → services (internal/app)
 // → REST router, served with graceful shutdown on SIGINT/SIGTERM.
 package main
 
@@ -32,8 +32,8 @@ func main() {
 	}
 	logger := logging.Setup(cfg.IsProduction())
 
-	if err := database.Migrate(cfg.DatabaseURL, cfg.MigrationsPath); err != nil {
-		logger.Error("migrate failed", "error", err)
+	if err := database.InitSchema(cfg.DatabaseURL, cfg.DBInitPath); err != nil {
+		logger.Error("schema init failed", "error", err)
 		os.Exit(1)
 	}
 

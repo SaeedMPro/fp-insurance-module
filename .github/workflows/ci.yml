@@ -33,11 +33,15 @@ jobs:
         uses: golangci/golangci-lint-action@v8
         with:
           working-directory: backend
-      - name: Migrate test database
+      - name: Install psql client
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+      - name: Initialize test database
+        # Applies db/init.sql + db/seed.sql via psql (no Go seed helpers).
+        env:
+          PGPASSWORD: insurance
         run: |
-          go run -tags 'postgres' github.com/golang-migrate/migrate/v4/cmd/migrate@v4.19.1 \
-            -path migrations \
-            -database "postgres://insurance:insurance@localhost:5432/insurance?sslmode=disable" up
+          psql -h localhost -U insurance -d insurance -v ON_ERROR_STOP=1 -f db/init.sql
+          psql -h localhost -U insurance -d insurance -v ON_ERROR_STOP=1 -f db/seed.sql
       - name: Test (unit + integration + OpenAPI conformance)
         # Includes TestOpenAPIConformance / TestOpenAPISpecCoversEveryRoute, which
         # validate live responses against backend/api/openapi.yaml and fail if any

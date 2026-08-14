@@ -3,8 +3,8 @@
 // implements every repository interface the services declare. GORM does not
 // appear anywhere outside this package.
 //
-// Schema evolution belongs to backend/migrations (golang-migrate); these row
-// types only describe how to read and write the already-migrated schema.
+// Schema belongs to backend/db/init.sql; these row types only describe how to
+// read and write the already-initialized schema.
 package postgres
 
 import (

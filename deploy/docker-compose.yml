@@ -33,7 +33,7 @@ services:
       DATABASE_URL: postgres://insurance:insurance@postgres:5432/insurance?sslmode=disable
       JWT_SECRET: ${JWT_SECRET:-change-me-in-prod}
       JWT_TTL: 8h
-      MIGRATIONS_PATH: file:///app/migrations
+      DB_INIT_PATH: /app/db/init.sql
       CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:5173}
     ports:
       - "8080:8080"

@@ -20,9 +20,4 @@ dist/
 # OS
 .DS_Store
 
-# E2E artifacts (failure screenshots etc.)
-e2e/artifacts/
-
-# Keep these committed:
-# !go.sum
-# !package-lock.json
+*__pycache__/

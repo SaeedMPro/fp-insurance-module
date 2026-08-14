@@ -12,7 +12,6 @@ RUN go mod download
 COPY . .
 
 RUN CGO_ENABLED=0 go build -ldflags="-s -w" -o /app/api ./cmd/api
-RUN CGO_ENABLED=0 go build -ldflags="-s -w" -o /app/seed ./cmd/seed
 
 # ---- final stage ----
 FROM alpine:3.20 AS final
@@ -22,8 +21,8 @@ RUN apk add --no-cache ca-certificates && \
 
 WORKDIR /app
 
-COPY --from=build /app/api /app/seed ./
-COPY --from=build /src/migrations ./migrations
+COPY --from=build /app/api ./
+COPY --from=build /src/db ./db
 
 USER app
 

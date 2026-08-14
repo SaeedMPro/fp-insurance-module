@@ -135,7 +135,7 @@ func (s *Store) CreatePlan(ctx context.Context, p *domain.CoveragePlan) error {
 	return nil
 }
 
-// GetPlanByName supports seeding/fixtures.
+// GetPlanByName looks up a coverage plan by display name (used by tests).
 func (s *Store) GetPlanByName(ctx context.Context, name string) (domain.CoveragePlan, error) {
 	var row planRow
 	if err := s.ctx(ctx).Where("name = ?", name).First(&row).Error; err != nil {
@@ -144,7 +144,7 @@ func (s *Store) GetPlanByName(ctx context.Context, name string) (domain.Coverage
 	return row.toDomain(), nil
 }
 
-// GetServiceTypeByCode supports seeding/fixtures.
+// GetServiceTypeByCode looks up a service type by stable code (used by tests).
 func (s *Store) GetServiceTypeByCode(ctx context.Context, code string) (domain.ServiceType, error) {
 	var row serviceTypeRow
 	if err := s.ctx(ctx).Where("code = ?", code).First(&row).Error; err != nil {

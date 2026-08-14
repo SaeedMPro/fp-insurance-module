@@ -1,6 +1,6 @@
 // Package app is the composition root: it wires the postgres Store into the
 // service layer (including each service's transaction adapter) so that
-// entrypoints (cmd/api, cmd/seed) and integration tests build the exact same
+// entrypoints (cmd/api) and integration tests build the exact same
 // object graph from a single place.
 package app
 

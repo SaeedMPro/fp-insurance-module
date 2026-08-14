@@ -16,13 +16,13 @@ import (
 const insecureDefaultJWTSecret = "dev-only-insecure-secret-change-me" // #nosec G101 -- known-insecure sentinel, refused in production
 
 type Config struct {
-	Env            string
-	HTTPPort       string
-	DatabaseURL    string
-	JWTSecret      string
-	JWTTTL         time.Duration
-	MigrationsPath string
-	CORSOrigins    []string
+	Env         string
+	HTTPPort    string
+	DatabaseURL string
+	JWTSecret   string
+	JWTTTL      time.Duration
+	DBInitPath  string
+	CORSOrigins []string
 }
 
 // IsProduction reports whether the process runs with APP_ENV=production.
@@ -31,13 +31,13 @@ func (c Config) IsProduction() bool { return c.Env == "production" }
 // Load reads configuration from the environment and validates it.
 func Load() (Config, error) {
 	cfg := Config{
-		Env:            getEnv("APP_ENV", "development"),
-		HTTPPort:       getEnv("HTTP_PORT", "8080"),
-		DatabaseURL:    getEnv("DATABASE_URL", "postgres://insurance:insurance@localhost:5432/insurance?sslmode=disable"),
-		JWTSecret:      getEnv("JWT_SECRET", insecureDefaultJWTSecret),
-		JWTTTL:         getDuration("JWT_TTL", 8*time.Hour),
-		MigrationsPath: getEnv("MIGRATIONS_PATH", "file://migrations"),
-		CORSOrigins:    []string{getEnv("CORS_ORIGIN", "http://localhost:5173")},
+		Env:         getEnv("APP_ENV", "development"),
+		HTTPPort:    getEnv("HTTP_PORT", "8080"),
+		DatabaseURL: getEnv("DATABASE_URL", "postgres://insurance:insurance@localhost:5432/insurance?sslmode=disable"),
+		JWTSecret:   getEnv("JWT_SECRET", insecureDefaultJWTSecret),
+		JWTTTL:      getDuration("JWT_TTL", 8*time.Hour),
+		DBInitPath:  getEnv("DB_INIT_PATH", "db/init.sql"),
+		CORSOrigins: []string{getEnv("CORS_ORIGIN", "http://localhost:5173")},
 	}
 	if err := cfg.validate(); err != nil {
 		return Config{}, err

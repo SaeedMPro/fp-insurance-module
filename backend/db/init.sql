@@ -1,4 +1,6 @@
--- Supplementary Insurance Module: initial schema
+-- Supplementary Insurance Module: schema
+-- Applied once on API boot (see internal/platform/database).
+
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
 CREATE TABLE insurance_contracts (
@@ -54,16 +56,14 @@ CREATE TABLE service_types (
     created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
--- Versioned, config-driven coverage rules. A new row = a new version; the previous
--- version's effective_to is closed off. This is the entire "rule engine" data source:
--- changing benefits means inserting a row here, never touching Go code.
+-- Versioned, config-driven coverage rules. A new row = a new version.
 CREATE TABLE coverage_rules (
     id                   UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     plan_id              UUID NOT NULL REFERENCES coverage_plans(id) ON DELETE CASCADE,
     service_type_id      UUID NOT NULL REFERENCES service_types(id) ON DELETE CASCADE,
     coverage_percent     NUMERIC(5,2) NOT NULL CHECK (coverage_percent >= 0 AND coverage_percent <= 100),
-    per_claim_cap        NUMERIC(14,2) CHECK (per_claim_cap IS NULL OR per_claim_cap >= 0),
-    annual_cap           NUMERIC(14,2) CHECK (annual_cap IS NULL OR annual_cap >= 0),
+    per_claim_cap        NUMERIC(14,0) CHECK (per_claim_cap IS NULL OR per_claim_cap >= 0),
+    annual_cap           NUMERIC(14,0) CHECK (annual_cap IS NULL OR annual_cap >= 0),
     waiting_period_days  INTEGER NOT NULL DEFAULT 0,
     eligible_relations   TEXT[] NOT NULL DEFAULT '{self}',
     effective_from       DATE NOT NULL,
@@ -91,14 +91,14 @@ CREATE TABLE claims (
     dependent_id              UUID REFERENCES dependents(id),
     service_type_id           UUID NOT NULL REFERENCES service_types(id),
     plan_id                   UUID NOT NULL REFERENCES coverage_plans(id),
-    requested_amount          NUMERIC(14,2) NOT NULL CHECK (requested_amount > 0),
+    requested_amount          NUMERIC(14,0) NOT NULL CHECK (requested_amount > 0),
     receipt_date              DATE NOT NULL,
     description               TEXT,
     status                    VARCHAR(30) NOT NULL DEFAULT 'draft' CHECK (status IN (
                                   'draft','submitted','under_review','returned_for_docs',
                                   'approved','rejected','payment_calculated','paid','closed')),
     coverage_percent_applied  NUMERIC(5,2),
-    payable_amount            NUMERIC(14,2),
+    payable_amount            NUMERIC(14,0),
     rejection_reason          TEXT,
     submitted_at              TIMESTAMPTZ,
     reviewed_by               UUID REFERENCES users(id),
@@ -112,6 +112,14 @@ CREATE TABLE claims (
 CREATE INDEX idx_claims_employee ON claims (employee_id);
 CREATE INDEX idx_claims_status ON claims (status);
 CREATE INDEX idx_claims_service_type ON claims (service_type_id);
+CREATE INDEX idx_claims_created_by ON claims (created_by);
+CREATE INDEX idx_claims_annual_cap_lookup
+    ON claims (employee_id, service_type_id, plan_id, status, receipt_date);
+
+COMMENT ON COLUMN claims.requested_amount IS 'Whole rial (ADR-0003)';
+COMMENT ON COLUMN claims.payable_amount   IS 'Whole rial, computed by the coverage engine (ADR-0003)';
+COMMENT ON COLUMN coverage_rules.per_claim_cap IS 'Whole rial; NULL = no per-claim cap';
+COMMENT ON COLUMN coverage_rules.annual_cap    IS 'Whole rial; NULL = no annual cap';
 
 CREATE TABLE claim_attachments (
     id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -124,13 +132,13 @@ CREATE TABLE claim_attachments (
 CREATE TABLE payments (
     id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     claim_id            UUID NOT NULL UNIQUE REFERENCES claims(id),
-    amount              NUMERIC(14,2) NOT NULL,
+    amount              NUMERIC(14,0) NOT NULL,
     payment_reference   VARCHAR(60) NOT NULL,
     status              VARCHAR(20) NOT NULL DEFAULT 'simulated' CHECK (status IN ('simulated','completed')),
     paid_at             TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+COMMENT ON COLUMN payments.amount IS 'Whole rial (ADR-0003)';
 
--- Generic audit trail covering every mutating action in the system.
 CREATE TABLE audit_logs (
     id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     entity_type     VARCHAR(50) NOT NULL,
@@ -147,7 +155,6 @@ CREATE INDEX idx_audit_entity ON audit_logs (entity_type, entity_id);
 CREATE INDEX idx_audit_occurred_at ON audit_logs (occurred_at);
 CREATE INDEX idx_audit_actor ON audit_logs (actor_user_id);
 
--- API keys for the parent-system integration (system-to-system, not JWT user auth).
 CREATE TABLE integration_api_keys (
     id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name          VARCHAR(100) NOT NULL,

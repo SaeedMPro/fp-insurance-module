@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -18,7 +19,10 @@ import (
 	"insurance-module/internal/app"
 	"insurance-module/internal/app/apptest"
 	"insurance-module/internal/domain"
-	"insurance-module/internal/fixtures"
+	"insurance-module/internal/service/claims"
+	"insurance-module/internal/service/employees"
+	"insurance-module/internal/service/users"
+	"insurance-module/internal/storage/postgres"
 	transporthttp "insurance-module/internal/transport/http"
 )
 
@@ -31,11 +35,16 @@ func TestOpenAPIConformance(t *testing.T) {
 	store, _ := apptest.Open(t)
 	ctx := context.Background()
 
-	// Fresh service graph over the tx-bound store, with the same secret the
-	// requests below will sign tokens with.
 	const secret = "conformance-test-secret"
 	svcs := app.Build(store, app.Options{JWTSecret: secret, JWTTTL: time.Hour})
-	require.NoError(t, fixtures.Seed(ctx, store, svcs))
+
+	const (
+		adminUser  = "oa-admin"
+		adminPass  = "Admin123!"
+		empUser    = "oa-employee"
+		empPass    = "Employee123!"
+	)
+	employeeID, claimID := setupConformanceData(t, ctx, store, svcs, adminUser, adminPass, empUser, empPass)
 
 	handler := transporthttp.NewRouter(transporthttp.Config{
 		JWTSecret:   secret,
@@ -49,29 +58,14 @@ func TestOpenAPIConformance(t *testing.T) {
 	require.NoError(t, err, "openapi.yaml must parse")
 	require.NoError(t, doc.Validate(ctx), "openapi.yaml must be a valid OpenAPI document")
 
-	// The spec's server is the relative "/api/v1"; point it at the test server
-	// so the router can match absolute request URLs.
 	doc.Servers = openapi3.Servers{{URL: srv.URL + "/api/v1"}}
 	specRouter, err := gorillamux.NewRouter(doc)
 	require.NoError(t, err)
 
 	client := srv.Client()
 
-	// login first: every other call needs a token.
-	adminToken := login(t, client, srv.URL, "admin", "Admin123!")
-	employeeToken := login(t, client, srv.URL, "sara.ahmadi", "Employee123!")
-
-	me := getJSON[map[string]any](t, client, srv.URL, "/api/v1/auth/me", employeeToken)
-	employeeID, _ := me["employee_id"].(string)
-	require.NotEmpty(t, employeeID, "seeded employee user must be linked to an employee")
-
-	claimList := getJSON[struct {
-		Items []struct {
-			ID string `json:"id"`
-		} `json:"items"`
-	}](t, client, srv.URL, "/api/v1/claims?page_size=1", adminToken)
-	require.NotEmpty(t, claimList.Items, "fixtures must create claims")
-	claimID := claimList.Items[0].ID
+	adminToken := login(t, client, srv.URL, adminUser, adminPass)
+	employeeToken := login(t, client, srv.URL, empUser, empPass)
 
 	cases := []struct {
 		name   string
@@ -81,7 +75,7 @@ func TestOpenAPIConformance(t *testing.T) {
 		body   any
 		status int
 	}{
-		{"login", "POST", "/api/v1/auth/login", "", map[string]string{"username": "admin", "password": "Admin123!"}, 200},
+		{"login", "POST", "/api/v1/auth/login", "", map[string]string{"username": adminUser, "password": adminPass}, 200},
 		{"me", "GET", "/api/v1/auth/me", adminToken, nil, 200},
 		{"service types", "GET", "/api/v1/service-types", adminToken, nil, 200},
 		{"contracts", "GET", "/api/v1/contracts", adminToken, nil, 200},
@@ -100,8 +94,7 @@ func TestOpenAPIConformance(t *testing.T) {
 		{"spend by service type", "GET", "/api/v1/reports/spend-by-service-type", adminToken, nil, 200},
 		{"spend by month", "GET", "/api/v1/reports/spend-by-month", adminToken, nil, 200},
 		{"users", "GET", "/api/v1/admin/users", adminToken, nil, 200},
-		// Error envelopes must conform too, with the documented status codes.
-		{"bad credentials", "POST", "/api/v1/auth/login", "", map[string]string{"username": "admin", "password": "wrong"}, 401},
+		{"bad credentials", "POST", "/api/v1/auth/login", "", map[string]string{"username": adminUser, "password": "wrong"}, 401},
 		{"claim not found", "GET", "/api/v1/claims/00000000-0000-0000-0000-000000000000", adminToken, nil, 404},
 		{"role denied", "POST", "/api/v1/coverage-rules", employeeToken, map[string]any{}, 403},
 	}
@@ -134,6 +127,60 @@ func TestOpenAPIConformance(t *testing.T) {
 			require.NoError(t, err, "response does not conform to the spec; body=%s", payload)
 		})
 	}
+}
+
+// setupConformanceData creates the minimal admin, employee, and claim needed
+// for the OpenAPI walk — test-only, not a shared seed package.
+func setupConformanceData(
+	t *testing.T,
+	ctx context.Context,
+	store *postgres.Store,
+	svcs transporthttp.Services,
+	adminUser, adminPass, empUser, empPass string,
+) (employeeID, claimID string) {
+	t.Helper()
+	suffix := fmt.Sprintf("%012d", time.Now().UnixNano()%1e12)
+
+	_, err := svcs.Users.Create(ctx, users.CreateInput{
+		Username: adminUser, Password: adminPass,
+		FullName: "OA Admin", Role: domain.RoleAdmin,
+	})
+	require.NoError(t, err)
+
+	plan, err := store.GetPlanByName(ctx, "استاندارد")
+	require.NoError(t, err, "db/seed.sql must be applied before integration tests")
+
+	emp, err := svcs.Employees.Create(ctx, employees.CreateInput{
+		PersonnelNo: "OA-" + suffix,
+		FullName:    "OA Employee",
+		NationalID:  "OA-NID-" + suffix,
+		HireDate:    time.Now().AddDate(-2, 0, 0),
+		PlanID:      &plan.ID,
+	})
+	require.NoError(t, err)
+
+	empAccount, err := svcs.Users.Create(ctx, users.CreateInput{
+		Username: empUser, Password: empPass,
+		FullName: emp.FullName, Role: domain.RoleEmployee, EmployeeID: &emp.ID,
+	})
+	require.NoError(t, err)
+
+	st, err := store.GetServiceTypeByCode(ctx, "outpatient_visit")
+	require.NoError(t, err)
+
+	actor := domain.Actor{UserID: empAccount.ID, Username: empAccount.Username, Role: empAccount.Role}
+	claim, err := svcs.Claims.Create(ctx, actor, claims.CreateInput{
+		BeneficiaryType: domain.BeneficiarySelf,
+		ServiceTypeID:   st.ID,
+		RequestedAmount: 350000,
+		ReceiptDate:     time.Now().AddDate(0, 0, -1),
+		Description:     "openapi conformance claim",
+	})
+	require.NoError(t, err)
+	_, err = svcs.Claims.Submit(ctx, actor, claim.ID)
+	require.NoError(t, err)
+
+	return emp.ID.String(), claim.ID.String()
 }
 
 // TestOpenAPISpecCoversEveryRoute guards the other direction: every route the
@@ -174,18 +221,6 @@ func login(t *testing.T, client *http.Client, base, username, password string) s
 	return out.Token
 }
 
-func getJSON[T any](t *testing.T, client *http.Client, base, path, token string) T {
-	t.Helper()
-	req := newRequest(t, base, "GET", path, token, nil)
-	resp, err := client.Do(req)
-	require.NoError(t, err)
-	defer func() { _ = resp.Body.Close() }()
-	require.Equal(t, 200, resp.StatusCode)
-	var out T
-	require.NoError(t, json.Unmarshal(readBody(t, resp), &out))
-	return out
-}
-
 func newRequest(t *testing.T, base, method, path, token string, body any) *http.Request {
 	t.Helper()
 	var reader *bytes.Reader
@@ -214,5 +249,3 @@ func readBody(t *testing.T, resp *http.Response) []byte {
 	require.NoError(t, err)
 	return buf.Bytes()
 }
-
-var _ = domain.RoleAdmin // keep the domain import meaningful if cases change

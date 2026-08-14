@@ -42,7 +42,7 @@ func (p Percent) ApplyTo(amount Rial) Rial {
 // RialFromFloat converts a database NUMERIC or JSON number to Rial, rounding
 // half-up. Used only at the storage/transport boundary while legacy
 // fractional values may still exist; the migration to NUMERIC(14,0) makes
-// every stored value integral (see migrations/000003).
+// every stored value integral.
 func RialFromFloat(f float64) Rial {
 	return Rial(math.Round(f))
 }

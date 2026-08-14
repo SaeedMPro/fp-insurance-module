@@ -9,7 +9,7 @@ import (
 )
 
 // Open connects to PostgreSQL and returns a Store bound to the connection
-// pool. Schema migrations are NOT run here — that is platform/database.Migrate,
+// pool. Schema init is NOT run here — that is platform/database.InitSchema,
 // invoked by the entrypoints before opening the store.
 func Open(databaseURL string) (*Store, error) {
 	gdb, err := gorm.Open(gormpg.Open(databaseURL), &gorm.Config{

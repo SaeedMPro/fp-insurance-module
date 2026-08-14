@@ -9,7 +9,7 @@
 # has no such dependency and doubles as the fastest inner-loop for development
 # (Vite HMR, no image rebuilds).
 #
-# Usage:  ./scripts/dev-up.sh            # start everything, seed demo data
+# Usage:  ./scripts/dev-up.sh            # start everything, apply db/seed.sql
 #         ./scripts/dev-down.sh          # stop everything
 set -euo pipefail
 
@@ -42,11 +42,11 @@ else
 fi
 
 # ----------------------------------------------------------------- backend ---
-say "starting API on :$API_PORT (applies migrations on boot)"
+say "starting API on :$API_PORT (applies db/init.sql on boot)"
 cd "$ROOT/backend"
 DATABASE_URL="$DSN" \
 JWT_SECRET="${JWT_SECRET:-dev-secret-not-for-production}" \
-MIGRATIONS_PATH="file://migrations" \
+DB_INIT_PATH="db/init.sql" \
 HTTP_PORT="$API_PORT" \
 CORS_ORIGIN="http://localhost:$WEB_PORT" \
   nohup go run ./cmd/api >"$RUN_DIR/api.log" 2>&1 &
@@ -62,9 +62,13 @@ if ! curl -sf -m 2 "http://localhost:$API_PORT/healthz" >/dev/null 2>&1; then
   exit 1
 fi
 
-say "seeding demo data (idempotent)"
-DATABASE_URL="$DSN" JWT_SECRET="${JWT_SECRET:-dev-secret-not-for-production}" \
-  go run ./cmd/seed 2>&1 | tail -6
+say "applying reference seed (db/seed.sql)"
+# Skip if service types already present (re-running the script).
+if [[ "$(psql "$DSN" -Atc 'SELECT COUNT(*) FROM service_types')" == "0" ]]; then
+  psql "$DSN" -v ON_ERROR_STOP=1 -f "$ROOT/backend/db/seed.sql"
+else
+  say "reference seed already present; skipping"
+fi
 
 # ---------------------------------------------------------------- frontend ---
 say "starting Vite dev server on :$WEB_PORT"
@@ -86,10 +90,8 @@ cat <<EOF
      App   http://localhost:$WEB_PORT
      API   http://localhost:$API_PORT/api/v1   (health: /healthz)
 
-     admin       / Admin123!      full access
-     reviewer    / Reviewer123!   review queue + decisions
-     sara.ahmadi / Employee123!   submit & track own claims
-     auditor     / Auditor123!    reports + audit log
+     Reference data loaded from backend/db/seed.sql.
+     Create login accounts yourself (no demo users are seeded).
 
      logs   $RUN_DIR/api.log   $RUN_DIR/web.log
      stop   ./scripts/dev-down.sh
