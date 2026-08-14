@@ -53,7 +53,7 @@ backend/
   cmd/api/            HTTP server entrypoint (applies db/init.sql, then serves)
   db/
     init.sql          schema (source of truth)
-    seed.sql          contracts, plans, service types, coverage rules
+    seed.sql          contracts, plans, rules, demo users/employees
   internal/           layered Go packages (domain, service, storage, transport)
 frontend/             React + TypeScript SPA (pages per role)
 docker-compose.yml    postgres + backend + frontend stack
@@ -77,8 +77,17 @@ Then open:
 
 The backend applies `db/init.sql` automatically on boot when the schema is missing.
 Reference data lives in `db/seed.sql` and is applied manually with `make seed`
-(not on boot). No demo users are seeded — create accounts yourself after seed.
-`make down` stops the stack; `make logs` follows logs.
+(not on boot). `make down` stops the stack; `make logs` follows logs.
+
+### Demo accounts (after `make seed`)
+
+| Username | Password | Role |
+|---|---|---|
+| `admin` | `Admin123!` | admin |
+| `reviewer` | `Reviewer123!` | reviewer |
+| `auditor` | `Auditor123!` | auditor |
+| `sara.ahmadi` | `Employee123!` | employee |
+| `reza.karimi` | `Employee123!` | employee |
 
 > **Port conflicts.** The compose file uses host ports `5173` (frontend), `8080`
 > (backend), and `5432` (postgres) by default. If any are already in use, the
@@ -186,6 +195,5 @@ future siblings of this module.
   consume cap.
 - Interactive users authenticate with JWT; the parent system uses a static API key
   whose SHA-256 hash is stored (never the raw key).
-- Reference seed data in `db/seed.sql` (one contract, Standard + Premium plans,
-  five service types with rule versions) is applied manually with `make seed`.
-  It does not include demo users or claims; create those yourself.
+- Reference seed data in `db/seed.sql` (contract, plans, service types, rules,
+  and demo users/employees) is applied manually with `make seed`.

@@ -90,7 +90,7 @@ export const ROLE_LABELS: Record<Role, string> = {
   admin: 'مدیر سامانه',
   reviewer: 'کارشناس بررسی',
   employee: 'کارمند',
-  auditor: 'ممیز',
+  auditor: 'بازرس',
 }
 
 export const RELATION_LABELS: Record<Relation, string> = {
