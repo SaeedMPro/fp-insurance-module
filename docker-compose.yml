@@ -44,6 +44,8 @@ services:
     restart: unless-stopped
     depends_on:
       - backend
+    environment:
+      API_BASE_URL: ${API_BASE_URL:-/api/v1}
     ports:
       - "5173:80"
 

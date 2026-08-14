@@ -2,11 +2,16 @@ import axios from 'axios'
 
 import { translateApiError } from '../lib/errorMessages'
 
-// Relative URL: Vite (dev) and nginx (Docker) proxy /api to the backend, so the
-// API host is never baked into the frontend build.
-const baseURL = '/api/v1'
+type AppConfig = { apiBaseUrl?: string }
 
-export const client = axios.create({ baseURL })
+function resolveApiBaseUrl(): string {
+  const cfg = (window as unknown as { __APP_CONFIG__?: AppConfig }).__APP_CONFIG__
+  return cfg?.apiBaseUrl || '/api/v1'
+}
+
+// Runtime value from /config.js (Docker: API_BASE_URL env). Falls back to the
+// same-origin nginx/Vite proxy path when config is missing.
+export const client = axios.create({ baseURL: resolveApiBaseUrl() })
 
 const TOKEN_KEY = 'auth_token'
 const USER_KEY = 'auth_user'

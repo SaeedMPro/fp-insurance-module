@@ -20,9 +20,12 @@ npm install
 npm run dev        # http://localhost:5173
 ```
 
-Configure nothing for the API URL: the client uses relative `/api/v1`. Vite
-proxies that to `http://localhost:8080` in dev; the Docker nginx image proxies
-it to the `backend` service at runtime.
+Configure the API base URL at **runtime** (not at image build):
+
+- Docker: set `API_BASE_URL` on the frontend service (default `/api/v1`, which
+  nginx proxies to the backend). Example: `API_BASE_URL=http://localhost:8080/api/v1`
+- Local Vite: edit `public/config.js`, or leave the default `/api/v1` and use the
+  Vite proxy (`API_PROXY_TARGET`, default `http://localhost:8080`).
 
 ```bash
 npm run build      # type-check (tsc -b) + production build to dist/
