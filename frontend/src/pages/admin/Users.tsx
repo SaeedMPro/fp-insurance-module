@@ -11,7 +11,7 @@ import { Spinner } from '../../components/Spinner'
 import { Field, inputClass } from '../../components/FormField'
 import { ROLE_LABELS } from '../../lib/format'
 
-const ROLES: Role[] = ['admin', 'reviewer', 'employee', 'auditor']
+const ASSIGNABLE_ROLES: Role[] = ['reviewer', 'employee', 'auditor']
 
 export function Users() {
   const { showToast } = useToast()
@@ -118,7 +118,8 @@ export function Users() {
       <div>
         <h1 className="text-xl font-semibold text-slate-900 dark:text-slate-50">کاربران</h1>
         <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-          مدیریت حساب‌های سامانه و نقش‌های آن‌ها. حساب‌های با نقش کارمند باید به یک پروندهٔ کارمندی متصل شوند.
+          مدیریت حساب‌های سامانه و نقش‌های آن‌ها. حساب‌های با نقش کارمند باید به یک پروندهٔ کارمندی
+          متصل شوند. مدیر سامانه فقط از طریق seed یا دستور <span className="dir-ltr font-mono text-xs">make create-admin</span> ساخته می‌شود.
         </p>
       </div>
 
@@ -147,7 +148,7 @@ export function Users() {
           </Field>
           <Field label="نقش">
             <select value={role} onChange={(e) => setRole(e.target.value as Role)} className={inputClass}>
-              {ROLES.map((r) => (
+              {ASSIGNABLE_ROLES.map((r) => (
                 <option key={r} value={r}>
                   {ROLE_LABELS[r]}
                 </option>
@@ -207,17 +208,23 @@ export function Users() {
                     <td className="px-5 py-3 font-medium text-slate-900 dark:text-slate-100">{user.username}</td>
                     <td className="px-5 py-3">{user.full_name}</td>
                     <td className="px-5 py-3">
-                      <select
-                        value={user.role}
-                        onChange={(e) => handleRoleChange(user, e.target.value as Role)}
-                        className="rounded-md border border-slate-300 bg-white px-2 py-1 text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
-                      >
-                        {ROLES.map((r) => (
-                          <option key={r} value={r}>
-                            {ROLE_LABELS[r]}
-                          </option>
-                        ))}
-                      </select>
+                      {user.role === 'admin' ? (
+                        <span className="inline-flex items-center rounded-md bg-slate-100 px-2 py-1 text-xs font-medium text-slate-700 dark:bg-slate-800 dark:text-slate-200">
+                          {ROLE_LABELS.admin}
+                        </span>
+                      ) : (
+                        <select
+                          value={user.role}
+                          onChange={(e) => handleRoleChange(user, e.target.value as Role)}
+                          className="rounded-md border border-slate-300 bg-white px-2 py-1 text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+                        >
+                          {ASSIGNABLE_ROLES.map((r) => (
+                            <option key={r} value={r}>
+                              {ROLE_LABELS[r]}
+                            </option>
+                          ))}
+                        </select>
+                      )}
                     </td>
                     <td className="px-5 py-3">
                       <span

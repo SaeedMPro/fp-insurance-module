@@ -26,11 +26,14 @@ import (
 	transporthttp "insurance-module/internal/transport/http"
 )
 
+// Seeded bootstrap admin (db/seed.sql). Admin cannot be created via Users.Create.
+const (
+	seedAdminUser = "admin"
+	seedAdminPass = "Admin123!"
+)
+
 // TestOpenAPIConformance boots the real router over a real (rolled-back)
 // database and validates actual responses against backend/api/openapi.yaml.
-// The spec is the contract (ADR-0002); this test is what keeps the running
-// server honest about it, so a handler cannot silently drift from the schema
-// the frontend's types are generated from.
 func TestOpenAPIConformance(t *testing.T) {
 	store, _ := apptest.Open(t)
 	ctx := context.Background()
@@ -39,16 +42,13 @@ func TestOpenAPIConformance(t *testing.T) {
 	svcs := app.Build(store, app.Options{JWTSecret: secret, JWTTTL: time.Hour})
 
 	const (
-		adminUser = "oa-admin"
-		adminPass = "Admin123!"
-		empUser   = "oa-employee"
-		empPass   = "Employee123!"
+		empUser = "oa-employee"
+		empPass = "Employee123!"
 	)
-	employeeID, claimID := setupConformanceData(t, ctx, store, svcs, adminUser, adminPass, empUser, empPass)
+	employeeID, claimID := setupConformanceData(t, ctx, store, svcs, empUser, empPass)
 
 	handler := transporthttp.NewRouter(transporthttp.Config{
-		JWTSecret:   secret,
-		CORSOrigins: []string{"*"},
+		JWTSecret: secret,
 	}, svcs)
 	srv := httptest.NewServer(handler)
 	defer srv.Close()
@@ -64,7 +64,7 @@ func TestOpenAPIConformance(t *testing.T) {
 
 	client := srv.Client()
 
-	adminToken := login(t, client, srv.URL, adminUser, adminPass)
+	adminToken := login(t, client, srv.URL, seedAdminUser, seedAdminPass)
 	employeeToken := login(t, client, srv.URL, empUser, empPass)
 
 	cases := []struct {
@@ -75,7 +75,7 @@ func TestOpenAPIConformance(t *testing.T) {
 		body   any
 		status int
 	}{
-		{"login", "POST", "/api/v1/auth/login", "", map[string]string{"username": adminUser, "password": adminPass}, 200},
+		{"login", "POST", "/api/v1/auth/login", "", map[string]string{"username": seedAdminUser, "password": seedAdminPass}, 200},
 		{"me", "GET", "/api/v1/auth/me", adminToken, nil, 200},
 		{"service types", "GET", "/api/v1/service-types", adminToken, nil, 200},
 		{"contracts", "GET", "/api/v1/contracts", adminToken, nil, 200},
@@ -94,7 +94,7 @@ func TestOpenAPIConformance(t *testing.T) {
 		{"spend by service type", "GET", "/api/v1/reports/spend-by-service-type", adminToken, nil, 200},
 		{"spend by month", "GET", "/api/v1/reports/spend-by-month", adminToken, nil, 200},
 		{"users", "GET", "/api/v1/admin/users", adminToken, nil, 200},
-		{"bad credentials", "POST", "/api/v1/auth/login", "", map[string]string{"username": adminUser, "password": "wrong"}, 401},
+		{"bad credentials", "POST", "/api/v1/auth/login", "", map[string]string{"username": seedAdminUser, "password": "wrong"}, 401},
 		{"claim not found", "GET", "/api/v1/claims/00000000-0000-0000-0000-000000000000", adminToken, nil, 404},
 		{"role denied", "POST", "/api/v1/coverage-rules", employeeToken, map[string]any{}, 403},
 	}
@@ -129,23 +129,24 @@ func TestOpenAPIConformance(t *testing.T) {
 	}
 }
 
-// setupConformanceData creates the minimal admin, employee, and claim needed
-// for the OpenAPI walk — test-only, not a shared seed package.
+// setupConformanceData creates an employee user + claim. Admin comes from seed.
 func setupConformanceData(
 	t *testing.T,
 	ctx context.Context,
 	store *postgres.Store,
 	svcs transporthttp.Services,
-	adminUser, adminPass, empUser, empPass string,
+	empUser, empPass string,
 ) (employeeID, claimID string) {
 	t.Helper()
 	suffix := fmt.Sprintf("%012d", time.Now().UnixNano()%1e12)
 
-	_, err := svcs.Users.Create(ctx, users.CreateInput{
-		Username: adminUser, Password: adminPass,
-		FullName: "OA Admin", Role: domain.RoleAdmin,
+	// Confirm bootstrap admin exists (seed / EnsureAdmin); do not create via API Create.
+	admin, created, err := svcs.Users.EnsureAdmin(ctx, users.CreateInput{
+		Username: seedAdminUser, Password: seedAdminPass, FullName: "مدیر سامانه",
 	})
 	require.NoError(t, err)
+	require.False(t, created, "seeded test DB should already have an admin")
+	require.Equal(t, domain.RoleAdmin, admin.Role)
 
 	plan, err := store.GetPlanByName(ctx, "استاندارد")
 	require.NoError(t, err, "db/seed.sql must be applied before integration tests")
@@ -198,7 +199,6 @@ func TestOpenAPISpecCoversEveryRoute(t *testing.T) {
 	}
 
 	for _, r := range transporthttp.Routes() {
-		// Infrastructure / docs endpoints sit outside the versioned API contract.
 		switch r {
 		case "GET /healthz", "GET /openapi.yaml", "GET /swagger", "GET /swagger/":
 			continue

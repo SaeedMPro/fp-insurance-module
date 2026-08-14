@@ -40,5 +40,5 @@ export function useTheme() {
     return () => mq.removeEventListener('change', onChange)
   }, [pref])
 
-  return { pref, setPref }
+  return { pref, setPref, isDark: pref === 'dark' || (pref === 'system' && systemPrefersDark()) }
 }

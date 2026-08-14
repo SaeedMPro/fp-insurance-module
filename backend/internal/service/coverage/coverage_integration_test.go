@@ -169,16 +169,15 @@ func TestPublishRuleVersion_SameDayRepublishAndTiebreak(t *testing.T) {
 	require.Equal(t, 1, open)
 }
 
-// newAdminActor creates a real admin user inside the test transaction —
-// audit rows carry a foreign key to users, so the actor must exist.
+// newAdminActor returns the seeded bootstrap admin (API Create cannot make admins).
 func newAdminActor(t *testing.T, svcs transporthttp.Services) domain.Actor {
 	t.Helper()
-	u, err := svcs.Users.Create(context.Background(), users.CreateInput{
-		Username: "it-admin-" + time.Now().Format("150405.000000000"),
-		Password: "x-test-password",
-		FullName: "Integration Admin",
-		Role:     domain.RoleAdmin,
+	u, created, err := svcs.Users.EnsureAdmin(context.Background(), users.CreateInput{
+		Username: "admin",
+		Password: "Admin123!",
+		FullName: "مدیر سامانه",
 	})
 	require.NoError(t, err)
+	require.False(t, created, "test DB should already have the seeded admin")
 	return domain.Actor{UserID: u.ID, Username: u.Username, Role: u.Role}
 }

@@ -71,6 +71,12 @@ components:
       type: string
       enum: [admin, reviewer, employee, auditor]
 
+    # Roles assignable via POST/PATCH /admin/users. Admin is bootstrap-only
+    # (seed / make create-admin); the API rejects role=admin on create/update.
+    AssignableRole:
+      type: string
+      enum: [reviewer, employee, auditor]
+
     EmploymentStatus:
       type: string
       enum: [active, terminated]
@@ -418,17 +424,23 @@ components:
     CreateUserRequest:
       type: object
       required: [username, password, full_name, role]
+      description: >
+        Creates a non-admin user. Role must be reviewer, employee, or auditor;
+        admin is rejected (403). Bootstrap the sole admin with seed or make create-admin.
       properties:
         username: { type: string }
         password: { type: string }
         full_name: { type: string }
-        role: { $ref: "#/components/schemas/Role" }
+        role: { $ref: "#/components/schemas/AssignableRole" }
         employee_id: { type: string, format: uuid, nullable: true }
 
     UpdateUserRequest:
       type: object
+      description: >
+        Partial update. Cannot set role to admin, and cannot change the existing
+        admin's role away from admin (403). Password and is_active for admin are allowed.
       properties:
-        role: { $ref: "#/components/schemas/Role" }
+        role: { $ref: "#/components/schemas/AssignableRole" }
         is_active: { type: boolean }
         password: { type: string }
 
@@ -1014,7 +1026,9 @@ paths:
         default: { $ref: "#/components/responses/Error" }
     post:
       operationId: createUser
-      description: Admin only.
+      description: >
+        Admin only. Role must be reviewer, employee, or auditor — admin cannot
+        be created via this endpoint (use seed or make create-admin).
       requestBody:
         required: true
         content:
@@ -1031,7 +1045,9 @@ paths:
   /admin/users/{id}:
     patch:
       operationId: updateUser
-      description: Admin only. Partial update (role / active / password).
+      description: >
+        Admin only. Partial update (role / active / password). Cannot promote to
+        admin or demote the existing admin; password and is_active remain allowed.
       parameters: [{ $ref: "#/components/parameters/ClaimID" }]
       requestBody:
         required: true

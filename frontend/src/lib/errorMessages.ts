@@ -62,6 +62,12 @@ const EXACT: Record<string, string> = {
     'درصد پوشش باید بین ۰ و ۱۰۰ باشد.',
   'username, password and full name are required':
     'نام کاربری، گذرواژه و نام و نام خانوادگی الزامی است.',
+  'admin accounts cannot be created via the API; use seed or make create-admin':
+    'نمی‌توانید حساب مدیر سامانه بسازید.',
+  'cannot assign the admin role via the API':
+    'نمی‌توانید نقش مدیر سامانه را اختصاص دهید.',
+  'the admin role cannot be changed via the API':
+    'نمی‌توانید نقش مدیر سامانه را تغییر دهید.',
 
   // --- server ------------------------------------------------------------
   'internal error': 'خطای داخلی سامانه. اگر تکرار شد با پشتیبانی تماس بگیرید.',

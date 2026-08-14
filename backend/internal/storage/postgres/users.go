@@ -36,6 +36,22 @@ func (s *Store) ListUsers(ctx context.Context) ([]domain.User, error) {
 	return out, nil
 }
 
+func (s *Store) CountUsersByRole(ctx context.Context, role domain.Role) (int64, error) {
+	var n int64
+	if err := s.ctx(ctx).Model(&userRow{}).Where("role = ?", role).Count(&n).Error; err != nil {
+		return 0, err
+	}
+	return n, nil
+}
+
+func (s *Store) GetUserByRole(ctx context.Context, role domain.Role) (domain.User, error) {
+	var row userRow
+	if err := s.ctx(ctx).Where("role = ?", role).Order("created_at").First(&row).Error; err != nil {
+		return domain.User{}, notFound(err, "user")
+	}
+	return row.toDomain(), nil
+}
+
 func (s *Store) CreateUser(ctx context.Context, u *domain.User) error {
 	row := userFromDomain(*u)
 	if err := s.ctx(ctx).Create(&row).Error; err != nil {

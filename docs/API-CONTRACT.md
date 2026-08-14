@@ -213,10 +213,12 @@ Auth: admin. Response 200: `User[]`.
 
 ### POST /admin/users
 Auth: admin. Request: `{"username","password","full_name","role","employee_id"}`.
+`role` may be `reviewer|employee|auditor` only — `admin` is rejected (403). The sole admin is created via seed / `make create-admin`.
 Response 201: `User`.
 
 ### PATCH /admin/users/{id}
 Auth: admin. Request (partial): `{"role","is_active","password"}`.
+Cannot set `role` to `admin`, and cannot change the existing admin’s role away from `admin` (403). Password reset and activate/deactivate for admin remain allowed.
 Response 200: `User`.
 
 ## Parent-system integration (API key, not JWT)

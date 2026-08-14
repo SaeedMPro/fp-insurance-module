@@ -15,8 +15,9 @@ Capstone project, Bu-Ali Sina University — طراحی و پیاده‌سازی
 ## Run
 
 ```bash
-make up      # postgres + backend + frontend
-make seed    # reference data + demo users (once)
+make up           # postgres + backend + frontend
+make seed         # reference data + demo users (once)
+make create-admin # sole admin if missing (defaults: admin / Admin123!)
 ```
 
 | | URL |
@@ -34,7 +35,7 @@ Schema (`db/init.sql`) applies on API boot. Seed (`db/seed.sql`) is manual.
 
 | User | Password | Role |
 |---|---|---|
-| `admin` | `Admin123!` | admin |
+| `admin` | `Admin123!` | admin (seed / `make create-admin` only; API cannot create or promote to admin) |
 | `reviewer` | `Reviewer123!` | reviewer |
 | `auditor` | `Auditor123!` | auditor |
 | `saeed.mazahery` | `Employee123!` | employee |

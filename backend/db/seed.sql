@@ -1,7 +1,7 @@
 -- Reference + demo login data. Applied manually with `make seed` (not on API boot).
 -- Amounts are whole rial (ADR-0003).
 -- Demo passwords (bcrypt below):
---   admin / Admin123!
+--   admin / Admin123!   (sole admin — seed / make create-admin only; not via API)
 --   reviewer / Reviewer123!
 --   auditor / Auditor123!
 --   saeed.mazahery / Employee123!
@@ -68,7 +68,8 @@ INSERT INTO dependents (employee_id, full_name, relation, birth_date)
 SELECT e.id, 'نیلوفر احمدی', 'child', DATE '2016-05-01'
 FROM employees e WHERE e.personnel_no = 'P-1001';
 
--- Demo users (bcrypt hashes for the passwords listed at the top of this file)
+-- Demo users. The sole admin is bootstrap-only (seed / make create-admin);
+-- the API and UI cannot create or promote to admin.
 INSERT INTO users (username, password_hash, full_name, role, employee_id) VALUES
     ('admin',    '$2a$10$LMJy.iaiEr25zBdrpjeQeOGC2UNvFqXBMLrHAmdvwOQerxQi3h6Ky', 'مدیر سامانه', 'admin', NULL),
     ('reviewer', '$2a$10$i0sBSNoZKNGY1PwsE.r0peVA9tLTq7eo6rK2Sj.YzyVQIIU3mPjPW', 'کارشناس بررسی خسارت', 'reviewer', NULL),

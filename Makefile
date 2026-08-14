@@ -1,6 +1,6 @@
 COMPOSE := docker compose
 
-.PHONY: up down logs seed test test-integration lint e2e build-frontend build-backend
+.PHONY: up down logs seed create-admin test test-integration lint e2e build-frontend build-backend
 
 up: ## Build images (if needed) and start postgres + backend + frontend
 	$(COMPOSE) up -d --build
@@ -18,6 +18,14 @@ seed: ## Apply backend/db/seed.sql (reference data; run once on empty DB)
 	$(COMPOSE) exec -T postgres \
 	  psql -U insurance -d insurance -v ON_ERROR_STOP=1 \
 	  < backend/db/seed.sql
+
+create-admin: ## Create the sole admin if missing (defaults: admin / Admin123!)
+	$(COMPOSE) run --rm --no-deps \
+	  -e DATABASE_URL=postgres://insurance:insurance@postgres:5432/insurance?sslmode=disable \
+	  -e ADMIN_USERNAME=$${ADMIN_USERNAME:-admin} \
+	  -e ADMIN_PASSWORD=$${ADMIN_PASSWORD:-Admin123!} \
+	  -e ADMIN_FULL_NAME=$${ADMIN_FULL_NAME:-مدیر سامانه} \
+	  backend /app/createadmin
 
 test: ## Run backend Go tests (integration tests skip if no DB is reachable)
 	cd backend && go test ./...

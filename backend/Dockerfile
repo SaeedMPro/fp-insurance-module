@@ -12,6 +12,7 @@ RUN go mod download
 COPY . .
 
 RUN CGO_ENABLED=0 go build -ldflags="-s -w" -o /app/api ./cmd/api
+RUN CGO_ENABLED=0 go build -ldflags="-s -w" -o /app/createadmin ./cmd/createadmin
 
 # ---- final stage ----
 FROM alpine:3.20 AS final
@@ -21,7 +22,7 @@ RUN apk add --no-cache ca-certificates && \
 
 WORKDIR /app
 
-COPY --from=build /app/api ./
+COPY --from=build /app/api /app/createadmin ./
 COPY --from=build /src/db ./db
 
 USER app

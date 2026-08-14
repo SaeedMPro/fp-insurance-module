@@ -11,12 +11,21 @@ import (
 	"insurance-module/internal/domain"
 )
 
-var ErrBadCredentials = domain.Unauthorizedf("invalid username or password")
+var (
+	ErrBadCredentials = domain.Unauthorizedf("invalid username or password")
+
+	// Bootstrap admin is seed / make create-admin only; API Create/Update cannot touch it.
+	ErrAdminCreateForbidden  = domain.Forbiddenf("admin accounts cannot be created via the API; use seed or make create-admin")
+	ErrAdminPromoteForbidden = domain.Forbiddenf("cannot assign the admin role via the API")
+	ErrAdminDemoteForbidden  = domain.Forbiddenf("the admin role cannot be changed via the API")
+)
 
 type Repo interface {
 	GetUser(ctx context.Context, id uuid.UUID) (domain.User, error)
 	GetUserByUsername(ctx context.Context, username string) (domain.User, error)
+	GetUserByRole(ctx context.Context, role domain.Role) (domain.User, error)
 	ListUsers(ctx context.Context) ([]domain.User, error)
+	CountUsersByRole(ctx context.Context, role domain.Role) (int64, error)
 	CreateUser(ctx context.Context, u *domain.User) error
 	SaveUser(ctx context.Context, u *domain.User) error
 	InsertAudit(ctx context.Context, entry *domain.AuditLog) error
@@ -89,6 +98,9 @@ func (s *Service) Create(ctx context.Context, in CreateInput) (domain.User, erro
 	if in.Username == "" || in.Password == "" || in.FullName == "" {
 		return domain.User{}, domain.Validationf("username, password and full name are required")
 	}
+	if in.Role == domain.RoleAdmin {
+		return domain.User{}, ErrAdminCreateForbidden
+	}
 	hash, err := auth.HashPassword(in.Password)
 	if err != nil {
 		return domain.User{}, domain.Internalf(err, "could not hash password")
@@ -119,6 +131,12 @@ func (s *Service) Update(ctx context.Context, id uuid.UUID, in UpdateInput) (dom
 		return domain.User{}, err
 	}
 	if in.Role != nil {
+		if *in.Role == domain.RoleAdmin {
+			return domain.User{}, ErrAdminPromoteForbidden
+		}
+		if u.Role == domain.RoleAdmin && *in.Role != domain.RoleAdmin {
+			return domain.User{}, ErrAdminDemoteForbidden
+		}
 		u.Role = *in.Role
 	}
 	if in.IsActive != nil {
@@ -135,4 +153,38 @@ func (s *Service) Update(ctx context.Context, id uuid.UUID, in UpdateInput) (dom
 		return domain.User{}, err
 	}
 	return u, nil
+}
+
+// EnsureAdmin creates the sole bootstrap admin when none exists (seed / make
+// create-admin). Idempotent: if an admin already exists, returns that user.
+func (s *Service) EnsureAdmin(ctx context.Context, in CreateInput) (domain.User, bool, error) {
+	if in.Username == "" || in.Password == "" || in.FullName == "" {
+		return domain.User{}, false, domain.Validationf("username, password and full name are required")
+	}
+	n, err := s.repo.CountUsersByRole(ctx, domain.RoleAdmin)
+	if err != nil {
+		return domain.User{}, false, err
+	}
+	if n > 0 {
+		existing, err := s.repo.GetUserByRole(ctx, domain.RoleAdmin)
+		if err != nil {
+			return domain.User{}, false, err
+		}
+		return existing, false, nil
+	}
+	hash, err := auth.HashPassword(in.Password)
+	if err != nil {
+		return domain.User{}, false, domain.Internalf(err, "could not hash password")
+	}
+	u := domain.User{
+		Username:     in.Username,
+		PasswordHash: hash,
+		FullName:     in.FullName,
+		Role:         domain.RoleAdmin,
+		IsActive:     true,
+	}
+	if err := s.repo.CreateUser(ctx, &u); err != nil {
+		return domain.User{}, false, err
+	}
+	return u, true, nil
 }
