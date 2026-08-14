@@ -101,6 +101,11 @@ func NewRouter(cfg Config, svcs Services) http.Handler {
 		writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 	})
 
+	// Docs are outside /api/v1 — not part of the versioned contract surface.
+	r.Get("/openapi.yaml", handleOpenAPISpec)
+	r.Get("/swagger", handleSwaggerUI)
+	r.Get("/swagger/", handleSwaggerUI)
+
 	authed := authenticate(cfg.JWTSecret)
 	adminOnly := requireRole(domain.RoleAdmin)
 	staff := requireRole(domain.RoleReviewer, domain.RoleAdmin)

@@ -198,7 +198,9 @@ func TestOpenAPISpecCoversEveryRoute(t *testing.T) {
 	}
 
 	for _, r := range transporthttp.Routes() {
-		if r == "GET /healthz" { // infrastructure endpoint, deliberately outside the versioned API
+		// Infrastructure / docs endpoints sit outside the versioned API contract.
+		switch r {
+		case "GET /healthz", "GET /openapi.yaml", "GET /swagger", "GET /swagger/":
 			continue
 		}
 		require.True(t, documented[r], "route %q is served but missing from api/openapi.yaml", r)

@@ -1,6 +1,8 @@
 # Supplementary Insurance Module — REST API Contract
 
 > **The machine-readable contract is [`backend/api/openapi.yaml`](../backend/api/openapi.yaml)** —
+> browse it live at `http://localhost:8080/swagger` when the API is running
+> (raw YAML: `/openapi.yaml`).
 > that document is the single source of truth (ADR-0002). The frontend's
 > TypeScript types are generated from it (`frontend/src/api/schema.d.ts`, via
 > `npm run gen:api`), and two Go tests keep the server honest about it:
