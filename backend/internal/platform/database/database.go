@@ -5,34 +5,37 @@
 package database
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"os"
+	"path/filepath"
+	"strings"
 
 	_ "github.com/lib/pq"
 )
 
 // InitSchema runs init.sql once when the claims table is missing.
-func InitSchema(databaseURL, initPath string) error {
+func InitSchema(ctx context.Context, databaseURL, initPath string) error {
 	db, err := sql.Open("postgres", databaseURL)
 	if err != nil {
 		return fmt.Errorf("open db: %w", err)
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
-	exists, err := tableExists(db, "claims")
+	exists, err := tableExists(ctx, db, "claims")
 	if err != nil {
 		return err
 	}
 	if exists {
 		return nil
 	}
-	return execFile(db, initPath)
+	return execFile(ctx, db, initPath)
 }
 
-func tableExists(db *sql.DB, name string) (bool, error) {
+func tableExists(ctx context.Context, db *sql.DB, name string) (bool, error) {
 	var exists bool
-	err := db.QueryRow(`
+	err := db.QueryRowContext(ctx, `
 		SELECT EXISTS (
 			SELECT 1 FROM information_schema.tables
 			WHERE table_schema = 'public' AND table_name = $1
@@ -43,13 +46,22 @@ func tableExists(db *sql.DB, name string) (bool, error) {
 	return exists, nil
 }
 
-func execFile(db *sql.DB, path string) error {
-	body, err := os.ReadFile(path)
+func execFile(ctx context.Context, db *sql.DB, path string) error {
+	clean, err := filepath.Abs(filepath.Clean(path))
 	if err != nil {
-		return fmt.Errorf("read %s: %w", path, err)
+		return fmt.Errorf("resolve path %s: %w", path, err)
 	}
-	if _, err := db.Exec(string(body)); err != nil {
-		return fmt.Errorf("exec %s: %w", path, err)
+	if !strings.HasSuffix(strings.ToLower(clean), ".sql") {
+		return fmt.Errorf("schema file must be a .sql path, got %s", path)
+	}
+
+	// Path comes from operator config (DB_INIT_PATH), not request input.
+	body, err := os.ReadFile(clean) // #nosec G304 -- trusted config path, validated .sql suffix
+	if err != nil {
+		return fmt.Errorf("read %s: %w", clean, err)
+	}
+	if _, err := db.ExecContext(ctx, string(body)); err != nil {
+		return fmt.Errorf("exec %s: %w", clean, err)
 	}
 	return nil
 }

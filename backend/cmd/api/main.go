@@ -32,7 +32,7 @@ func main() {
 	}
 	logger := logging.Setup(cfg.IsProduction())
 
-	if err := database.InitSchema(cfg.DatabaseURL, cfg.DBInitPath); err != nil {
+	if err := database.InitSchema(context.Background(), cfg.DatabaseURL, cfg.DBInitPath); err != nil {
 		logger.Error("schema init failed", "error", err)
 		os.Exit(1)
 	}
