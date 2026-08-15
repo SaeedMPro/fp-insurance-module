@@ -23,6 +23,7 @@ export interface UpdateUserRequest {
   role?: Role
   is_active?: boolean
   password?: string
+  employee_id?: string | null
 }
 
 export async function updateUser(id: string, req: UpdateUserRequest): Promise<User> {

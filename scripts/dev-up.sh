@@ -90,8 +90,8 @@ cat <<EOF
      App   http://localhost:$WEB_PORT
      API   http://localhost:$API_PORT/api/v1   (health: /healthz)
 
-     Reference data loaded from backend/db/seed.sql.
-     Create login accounts yourself (no demo users are seeded).
+     Reference data loaded from backend/db/seed.sql
+     (demo users, claims, reports sample — see README).
 
      logs   $RUN_DIR/api.log   $RUN_DIR/web.log
      stop   ./scripts/dev-down.sh

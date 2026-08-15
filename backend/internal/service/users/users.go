@@ -101,6 +101,14 @@ func (s *Service) Create(ctx context.Context, in CreateInput) (domain.User, erro
 	if in.Role == domain.RoleAdmin {
 		return domain.User{}, ErrAdminCreateForbidden
 	}
+	if in.Role == domain.RoleEmployee {
+		if in.EmployeeID == nil {
+			return domain.User{}, domain.Validationf("employee role requires a linked employee record")
+		}
+	} else {
+		// Staff accounts (reviewer/auditor) are not insured members.
+		in.EmployeeID = nil
+	}
 	hash, err := auth.HashPassword(in.Password)
 	if err != nil {
 		return domain.User{}, domain.Internalf(err, "could not hash password")
@@ -120,9 +128,10 @@ func (s *Service) Create(ctx context.Context, in CreateInput) (domain.User, erro
 }
 
 type UpdateInput struct {
-	Role     *domain.Role
-	IsActive *bool
-	Password *string
+	Role       *domain.Role
+	IsActive   *bool
+	Password   *string
+	EmployeeID *uuid.UUID // set/clear link; ignored unless role is (or becomes) employee
 }
 
 func (s *Service) Update(ctx context.Context, id uuid.UUID, in UpdateInput) (domain.User, error) {
@@ -138,6 +147,16 @@ func (s *Service) Update(ctx context.Context, id uuid.UUID, in UpdateInput) (dom
 			return domain.User{}, ErrAdminDemoteForbidden
 		}
 		u.Role = *in.Role
+	}
+	if in.EmployeeID != nil {
+		u.EmployeeID = in.EmployeeID
+	}
+	if u.Role == domain.RoleEmployee {
+		if u.EmployeeID == nil {
+			return domain.User{}, domain.Validationf("employee role requires a linked employee record")
+		}
+	} else {
+		u.EmployeeID = nil
 	}
 	if in.IsActive != nil {
 		u.IsActive = *in.IsActive

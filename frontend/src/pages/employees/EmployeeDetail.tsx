@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
-import { useParams } from 'react-router-dom'
+import { Link, useParams } from 'react-router-dom'
 import { createDependent, getEmployee, listDependents, updateEmployee } from '../../api/employees'
+import { createUser, listUsers } from '../../api/users'
 import { apiErrorMessage } from '../../api/client'
 import { listPlans } from '../../api/reference'
-import type { CoveragePlan, Dependent, Employee, Relation } from '../../api/types'
+import type { CoveragePlan, Dependent, Employee, Relation, User } from '../../api/types'
 import { useAuth } from '../../context/useAuth'
 import { useToast } from '../../context/useToast'
 import { Card } from '../../components/Card'
@@ -12,7 +13,12 @@ import { ErrorBanner } from '../../components/ErrorBanner'
 import { Spinner } from '../../components/Spinner'
 import { Field, inputClass } from '../../components/FormField'
 import { PersianDateInput } from '../../components/PersianDateInput'
+import { ROUTES } from '../../app/routes'
 import { formatDate, RELATION_LABELS } from '../../lib/format'
+
+function suggestUsername(personnelNo: string) {
+  return personnelNo.trim().toLowerCase().replace(/[^a-z0-9._-]/g, '')
+}
 
 export function EmployeeDetail() {
   const { id } = useParams<{ id: string }>()
@@ -23,6 +29,7 @@ export function EmployeeDetail() {
   const [employee, setEmployee] = useState<Employee | null>(null)
   const [plans, setPlans] = useState<CoveragePlan[]>([])
   const [dependents, setDependents] = useState<Dependent[]>([])
+  const [linkedUser, setLinkedUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -31,6 +38,11 @@ export function EmployeeDetail() {
   const [planId, setPlanId] = useState('')
   const [employmentStatus, setEmploymentStatus] = useState('active')
   const [savingProfile, setSavingProfile] = useState(false)
+
+  const [showAccountForm, setShowAccountForm] = useState(false)
+  const [accountUsername, setAccountUsername] = useState('')
+  const [accountPassword, setAccountPassword] = useState('')
+  const [savingAccount, setSavingAccount] = useState(false)
 
   const [depName, setDepName] = useState('')
   const [depRelation, setDepRelation] = useState<Relation>('spouse')
@@ -50,12 +62,20 @@ export function EmployeeDetail() {
       setDepartment(emp.department)
       setPlanId(emp.plan_id ?? '')
       setEmploymentStatus(emp.employment_status)
+      setAccountUsername(suggestUsername(emp.personnel_no))
+
+      if (isAdmin) {
+        const users = await listUsers()
+        setLinkedUser(users.find((u) => u.employee_id === emp.id) ?? null)
+      } else {
+        setLinkedUser(null)
+      }
     } catch (err) {
       setError(apiErrorMessage(err))
     } finally {
       setLoading(false)
     }
-  }, [id])
+  }, [id, isAdmin])
 
   useEffect(() => {
     load()
@@ -79,6 +99,33 @@ export function EmployeeDetail() {
       showToast(apiErrorMessage(err), 'error')
     } finally {
       setSavingProfile(false)
+    }
+  }
+
+  async function handleCreateAccount(e: FormEvent) {
+    e.preventDefault()
+    if (!employee) return
+    if (!accountUsername.trim() || !accountPassword) {
+      showToast('نام کاربری و گذرواژه الزامی است.', 'error')
+      return
+    }
+    setSavingAccount(true)
+    try {
+      const created = await createUser({
+        username: accountUsername.trim(),
+        password: accountPassword,
+        full_name: employee.full_name,
+        role: 'employee',
+        employee_id: employee.id,
+      })
+      setLinkedUser(created)
+      setShowAccountForm(false)
+      setAccountPassword('')
+      showToast('حساب ورود ایجاد شد.', 'success')
+    } catch (err) {
+      showToast(apiErrorMessage(err), 'error')
+    } finally {
+      setSavingAccount(false)
     }
   }
 
@@ -118,7 +165,8 @@ export function EmployeeDetail() {
       <div>
         <h1 className="text-xl font-semibold text-slate-900 dark:text-slate-50">{employee.full_name}</h1>
         <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-          شماره پرسنلی <span className="dir-ltr">{employee.personnel_no}</span> · کد ملی <span className="dir-ltr">{employee.national_id}</span> · تاریخ استخدام {formatDate(employee.hire_date)}
+          شماره پرسنلی <span className="dir-ltr">{employee.personnel_no}</span> · کد ملی{' '}
+          <span className="dir-ltr">{employee.national_id}</span> · تاریخ استخدام {formatDate(employee.hire_date)}
         </p>
       </div>
 
@@ -176,6 +224,102 @@ export function EmployeeDetail() {
         </form>
       </Card>
 
+      {isAdmin && (
+        <Card>
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-50">حساب ورود</h2>
+              <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                با حساب متصل، کارمند می‌تواند وارد سامانه شود و خسارت ثبت کند.
+              </p>
+            </div>
+            {linkedUser && (
+              <Link
+                to={ROUTES.users.path}
+                className="shrink-0 text-xs font-medium text-brand-600 hover:underline dark:text-brand-400"
+              >
+                مدیریت کاربران
+              </Link>
+            )}
+          </div>
+
+          {linkedUser ? (
+            <div className="mt-4 rounded-lg bg-slate-50 px-4 py-3 text-sm dark:bg-slate-800/60">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <p className="font-medium text-slate-900 dark:text-slate-50">
+                    <span className="dir-ltr font-mono">{linkedUser.username}</span>
+                  </p>
+                  <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
+                    {linkedUser.is_active ? 'فعال' : 'غیرفعال'} · نقش کارمند
+                  </p>
+                </div>
+                <span
+                  className={
+                    'inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ' +
+                    (linkedUser.is_active
+                      ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'
+                      : 'bg-slate-200 text-slate-600 dark:bg-slate-700 dark:text-slate-300')
+                  }
+                >
+                  متصل
+                </span>
+              </div>
+            </div>
+          ) : showAccountForm ? (
+            <form onSubmit={handleCreateAccount} className="mt-4 space-y-3 border-t border-slate-100 pt-4 dark:border-slate-800">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <Field label="نام کاربری">
+                  <input
+                    value={accountUsername}
+                    onChange={(e) => setAccountUsername(e.target.value)}
+                    dir="ltr"
+                    autoComplete="off"
+                    className={inputClass}
+                  />
+                </Field>
+                <Field label="گذرواژه">
+                  <input
+                    type="password"
+                    value={accountPassword}
+                    onChange={(e) => setAccountPassword(e.target.value)}
+                    autoComplete="new-password"
+                    className={inputClass}
+                  />
+                </Field>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="submit"
+                  disabled={savingAccount}
+                  className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {savingAccount ? 'در حال ایجاد…' : 'ایجاد حساب'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowAccountForm(false)}
+                  className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
+                >
+                  انصراف
+                </button>
+              </div>
+            </form>
+          ) : (
+            <div className="mt-4">
+              <p className="text-sm text-slate-500 dark:text-slate-400">هنوز حساب ورودی برای این کارمند ساخته نشده است.</p>
+              <button
+                type="button"
+                onClick={() => setShowAccountForm(true)}
+                className="mt-3 rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700"
+              >
+                ایجاد حساب کاربری
+              </button>
+            </div>
+          )}
+        </Card>
+      )}
+
       <Card>
         <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-50">اعضای تحت تکفل</h2>
         {dependents.length === 0 ? (
@@ -192,7 +336,10 @@ export function EmployeeDetail() {
         )}
 
         {isAdmin && (
-          <form onSubmit={handleAddDependent} className="mt-4 grid grid-cols-2 gap-3 border-t border-slate-100 pt-4 dark:border-slate-800">
+          <form
+            onSubmit={handleAddDependent}
+            className="mt-4 grid grid-cols-2 gap-3 border-t border-slate-100 pt-4 dark:border-slate-800"
+          >
             <Field label="نام و نام خانوادگی">
               <input value={depName} onChange={(e) => setDepName(e.target.value)} className={inputClass} />
             </Field>

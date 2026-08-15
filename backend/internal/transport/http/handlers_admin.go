@@ -50,9 +50,10 @@ func (s *Server) handleCreateUser(w http.ResponseWriter, r *http.Request) {
 }
 
 type updateUserRequest struct {
-	Role     *domain.Role `json:"role"`
-	IsActive *bool        `json:"is_active"`
-	Password *string      `json:"password"`
+	Role       *domain.Role `json:"role"`
+	IsActive   *bool        `json:"is_active"`
+	Password   *string      `json:"password"`
+	EmployeeID *string      `json:"employee_id"`
 }
 
 func (s *Server) handleUpdateUser(w http.ResponseWriter, r *http.Request) {
@@ -66,11 +67,23 @@ func (s *Server) handleUpdateUser(w http.ResponseWriter, r *http.Request) {
 		respondError(w, r, err)
 		return
 	}
-	user, err := s.users.Update(r.Context(), id, users.UpdateInput{
+	employeeID, err := parseOptionalUUID(req.EmployeeID, "employee_id")
+	if err != nil {
+		respondError(w, r, err)
+		return
+	}
+	in := users.UpdateInput{
 		Role:     req.Role,
 		IsActive: req.IsActive,
 		Password: req.Password,
-	})
+	}
+	// Only forward employee_id when the client sent the field (including explicit null
+	// is not distinguishable in Go without a custom type; presence of non-nil pointer
+	// after parse means a UUID was provided).
+	if req.EmployeeID != nil {
+		in.EmployeeID = employeeID
+	}
+	user, err := s.users.Update(r.Context(), id, in)
 	if err != nil {
 		respondError(w, r, err)
 		return

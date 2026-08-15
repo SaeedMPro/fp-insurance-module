@@ -53,6 +53,10 @@ export function Users() {
       setFormError('نام کاربری، گذرواژه و نام و نام خانوادگی الزامی است.')
       return
     }
+    if (role === 'employee' && !employeeId) {
+      setFormError('برای نقش کارمند، انتخاب پروندهٔ کارمندی الزامی است.')
+      return
+    }
     setSubmitting(true)
     try {
       await createUser({
@@ -60,7 +64,7 @@ export function Users() {
         password,
         full_name: fullName,
         role,
-        employee_id: role === 'employee' && employeeId ? employeeId : null,
+        employee_id: role === 'employee' ? employeeId : null,
       })
       showToast('کاربر ایجاد شد.', 'success')
       setUsername('')
@@ -77,10 +81,13 @@ export function Users() {
   }
 
   async function handleRoleChange(user: User, newRole: Role) {
-    // A select fires onChange immediately — confirm before changing an account's
-    // access level so a stray click can't silently reassign roles.
+    if (newRole === 'employee' && !user.employee_id) {
+      showToast('این حساب به پروندهٔ کارمندی وصل نیست؛ کاربر کارمند را از فرم ایجاد با پیوند بسازید.', 'error')
+      reload()
+      return
+    }
     if (!window.confirm(`نقش «${user.username}» به «${ROLE_LABELS[newRole]}» تغییر کند؟`)) {
-      reload() // snap the select back to the stored value
+      reload()
       return
     }
     try {
@@ -89,6 +96,7 @@ export function Users() {
       reload()
     } catch (err) {
       showToast(apiErrorMessage(err), 'error')
+      reload()
     }
   }
 
@@ -118,8 +126,10 @@ export function Users() {
       <div>
         <h1 className="text-xl font-semibold text-slate-900 dark:text-slate-50">کاربران</h1>
         <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-          مدیریت حساب‌های سامانه و نقش‌های آن‌ها. حساب‌های با نقش کارمند باید به یک پروندهٔ کارمندی
-          متصل شوند. مدیر سامانه فقط از طریق seed یا دستور <span className="dir-ltr font-mono text-xs">make create-admin</span> ساخته می‌شود.
+          حساب ورود به سامانه. نقش «کارمند» حتماً باید به یک ردیف در فهرست کارکنان وصل شود تا بتواند
+          خسارت ثبت کند. کارکنان بدون حساب (مثلاً از همگام‌سازی HR) فقط توسط ادمین مدیریت می‌شوند.
+          مدیر سامانه فقط از طریق seed یا <span className="dir-ltr font-mono text-xs">make create-admin</span>{' '}
+          ساخته می‌شود.
         </p>
       </div>
 
@@ -157,14 +167,17 @@ export function Users() {
           </Field>
           {role === 'employee' && (
             <Field label="کارمند مرتبط">
-              <select value={employeeId} onChange={(e) => setEmployeeId(e.target.value)} className={inputClass}>
-                <option value="">هیچ‌کدام</option>
+              <select value={employeeId} onChange={(e) => setEmployeeId(e.target.value)} className={inputClass} required>
+                <option value="">انتخاب کارمند…</option>
                 {employees.map((emp) => (
                   <option key={emp.id} value={emp.id}>
                     {emp.full_name} ({emp.personnel_no})
                   </option>
                 ))}
               </select>
+              <span className="mt-1 block text-xs font-normal text-slate-500 dark:text-slate-400">
+                فقط پرونده‌های کارمندی؛ بدون این پیوند، حساب نمی‌تواند خسارت ثبت کند.
+              </span>
             </Field>
           )}
           <div className="sm:col-span-2">
@@ -198,12 +211,17 @@ export function Users() {
                   <th className="px-5 py-2 font-medium">نام کاربری</th>
                   <th className="px-5 py-2 font-medium">نام و نام خانوادگی</th>
                   <th className="px-5 py-2 font-medium">نقش</th>
+                  <th className="px-5 py-2 font-medium">کارمند مرتبط</th>
                   <th className="px-5 py-2 font-medium">وضعیت</th>
                   <th className="px-5 py-2 font-medium" />
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                {users.map((user) => (
+                {users.map((user) => {
+                  const linked = user.employee_id
+                    ? employees.find((e) => e.id === user.employee_id)
+                    : undefined
+                  return (
                   <tr key={user.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50">
                     <td className="px-5 py-3 font-medium text-slate-900 dark:text-slate-100">{user.username}</td>
                     <td className="px-5 py-3">{user.full_name}</td>
@@ -224,6 +242,18 @@ export function Users() {
                             </option>
                           ))}
                         </select>
+                      )}
+                    </td>
+                    <td className="px-5 py-3 text-slate-600 dark:text-slate-300">
+                      {linked ? (
+                        <span>
+                          {linked.full_name}{' '}
+                          <span className="dir-ltr font-mono text-xs text-slate-400">({linked.personnel_no})</span>
+                        </span>
+                      ) : user.role === 'employee' ? (
+                        <span className="text-amber-700 dark:text-amber-300">بدون پیوند</span>
+                      ) : (
+                        '—'
                       )}
                     </td>
                     <td className="px-5 py-3">
@@ -257,7 +287,8 @@ export function Users() {
                       </div>
                     </td>
                   </tr>
-                ))}
+                  )
+                })}
               </tbody>
             </table>
           </div>

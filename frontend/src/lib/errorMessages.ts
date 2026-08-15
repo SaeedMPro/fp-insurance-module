@@ -67,6 +67,8 @@ const EXACT: Record<string, string> = {
   'service type code already exists': 'این کد نوع خدمت قبلاً ثبت شده است.',
   'username, password and full name are required':
     'نام کاربری، گذرواژه و نام و نام خانوادگی الزامی است.',
+  'employee role requires a linked employee record':
+    'نقش کارمند باید به یک پروندهٔ کارمندی متصل باشد.',
   'admin accounts cannot be created via the API; use seed or make create-admin':
     'نمی‌توانید حساب مدیر سامانه بسازید.',
   'cannot assign the admin role via the API':

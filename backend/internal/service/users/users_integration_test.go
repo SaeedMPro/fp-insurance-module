@@ -52,6 +52,34 @@ func TestUpdateRejectsDemoteAdmin(t *testing.T) {
 	require.ErrorIs(t, err, users.ErrAdminDemoteForbidden)
 }
 
+func TestCreateEmployeeRequiresLink(t *testing.T) {
+	_, svcs := apptest.Open(t)
+	_, err := svcs.Users.Create(context.Background(), users.CreateInput{
+		Username: "orphan_employee",
+		Password: "Employee123!",
+		FullName: "بدون پرونده",
+		Role:     domain.RoleEmployee,
+	})
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "employee role requires a linked employee record")
+}
+
+func TestUpdateRejectsEmployeeRoleWithoutLink(t *testing.T) {
+	_, svcs := apptest.Open(t)
+	u, err := svcs.Users.Create(context.Background(), users.CreateInput{
+		Username: "staff_then_emp",
+		Password: "Reviewer1!",
+		FullName: "کارشناس",
+		Role:     domain.RoleReviewer,
+	})
+	require.NoError(t, err)
+
+	role := domain.RoleEmployee
+	_, err = svcs.Users.Update(context.Background(), u.ID, users.UpdateInput{Role: &role})
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "employee role requires a linked employee record")
+}
+
 func TestEnsureAdminIdempotent(t *testing.T) {
 	_, svcs := apptest.Open(t)
 	in := users.CreateInput{

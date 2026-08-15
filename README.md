@@ -38,8 +38,12 @@ Schema (`db/init.sql`) applies on API boot. Seed (`db/seed.sql`) is manual.
 | `admin` | `Admin123!` | admin (seed / `make create-admin` only; API cannot create or promote to admin) |
 | `reviewer` | `Reviewer123!` | reviewer |
 | `auditor` | `Auditor123!` | auditor |
-| `saeed.mazahery` | `Employee123!` | employee |
-| `farzin.hamzei` | `Employee123!` | employee |
+| `saeed.mazahery` | `Employee123!` | employee (P-1001، طرح استاندارد) |
+| `farzin.hamzei` | `Employee123!` | employee (P-1002، طرح ویژه) |
+
+`make seed` loads a full demo dataset: contracts/plans/rules, HR roster + dependents,
+claims across every workflow status (with priced payables + payments), audit trail,
+and integration key `dev-integration-key` (`X-API-Key`).
 
 ## Layout
 
