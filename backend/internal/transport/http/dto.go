@@ -71,12 +71,11 @@ type serviceTypeDTO struct {
 	ID        uuid.UUID `json:"id"`
 	Code      string    `json:"code"`
 	Name      string    `json:"name"`
-	NameFa    string    `json:"name_fa"`
 	CreatedAt time.Time `json:"created_at"`
 }
 
 func toServiceTypeDTO(s domain.ServiceType) serviceTypeDTO {
-	return serviceTypeDTO{ID: s.ID, Code: s.Code, Name: s.Name, NameFa: s.NameFa, CreatedAt: s.CreatedAt}
+	return serviceTypeDTO{ID: s.ID, Code: s.Code, Name: s.Name, CreatedAt: s.CreatedAt}
 }
 
 type contractDTO struct {

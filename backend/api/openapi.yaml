@@ -138,12 +138,11 @@ components:
 
     ServiceType:
       type: object
-      required: [id, code, name, name_fa, created_at]
+      required: [id, code, name, created_at]
       properties:
         id: { type: string, format: uuid }
         code: { type: string }
         name: { type: string }
-        name_fa: { type: string }
         created_at: { type: string, format: date-time }
 
     InsuranceContract:
@@ -389,6 +388,13 @@ components:
         national_id: { type: string }
         birth_date: { type: string, format: date-time, nullable: true }
 
+    CreateServiceTypeRequest:
+      type: object
+      required: [code, name]
+      properties:
+        code: { type: string, description: "Stable machine code (lowercase, digits, underscores), unique." }
+        name: { type: string, description: "Display name (Persian)." }
+
     CreateContractRequest:
       type: object
       required: [name, start_date, end_date]
@@ -517,6 +523,21 @@ paths:
               schema:
                 type: array
                 items: { $ref: "#/components/schemas/ServiceType" }
+        default: { $ref: "#/components/responses/Error" }
+    post:
+      operationId: createServiceType
+      description: Admin only. Adds a claimable service category to the catalogue.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreateServiceTypeRequest" }
+      responses:
+        "201":
+          description: Created.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ServiceType" }
         default: { $ref: "#/components/responses/Error" }
 
   /contracts:

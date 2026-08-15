@@ -34,6 +34,7 @@ export const ROUTES = {
   newEmployee: { path: '/employees/new', roles: ['admin'] },
   employeeDetail: { path: '/employees/:id', roles: ['admin', 'reviewer'] },
   coverageRules: { path: '/coverage-rules', roles: ['admin'], nav: 'قوانین پوشش' },
+  serviceTypes: { path: '/service-types', roles: ['admin'], nav: 'انواع خدمت' },
   contracts: { path: '/contracts', roles: ['admin'], nav: 'قراردادها' },
   plans: { path: '/plans', roles: ['admin'], nav: 'طرح‌های پوشش' },
   users: { path: '/users', roles: ['admin'], nav: 'کاربران' },

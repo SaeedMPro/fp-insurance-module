@@ -11,6 +11,7 @@ import { Card } from '../../components/Card'
 import { ErrorBanner } from '../../components/ErrorBanner'
 import { Spinner } from '../../components/Spinner'
 import { Field, inputClass } from '../../components/FormField'
+import { PersianDateInput } from '../../components/PersianDateInput'
 import { formatDate, RELATION_LABELS } from '../../lib/format'
 
 export function EmployeeDetail() {
@@ -206,7 +207,7 @@ export function EmployeeDetail() {
               <input value={depNationalId} onChange={(e) => setDepNationalId(e.target.value)} className={inputClass} />
             </Field>
             <Field label="تاریخ تولد">
-              <input type="date" value={depBirthDate} onChange={(e) => setDepBirthDate(e.target.value)} className={inputClass} />
+              <PersianDateInput value={depBirthDate} onChange={setDepBirthDate} />
             </Field>
             <div className="col-span-2">
               <button

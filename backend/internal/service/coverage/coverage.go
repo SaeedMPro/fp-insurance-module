@@ -41,6 +41,8 @@ type Repo interface {
 	SumPayable(ctx context.Context, employeeID, serviceTypeID, planID uuid.UUID,
 		statuses []domain.ClaimStatus, from, to time.Time, excludeClaimID *uuid.UUID) (domain.Rial, error)
 	ListServiceTypes(ctx context.Context) ([]domain.ServiceType, error)
+	GetServiceTypeByCode(ctx context.Context, code string) (domain.ServiceType, error)
+	CreateServiceType(ctx context.Context, st *domain.ServiceType) error
 	ListContracts(ctx context.Context) ([]domain.InsuranceContract, error)
 	CreateContract(ctx context.Context, c *domain.InsuranceContract) error
 	ListPlans(ctx context.Context, contractID string) ([]domain.CoveragePlan, error)

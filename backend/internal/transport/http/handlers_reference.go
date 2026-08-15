@@ -17,6 +17,27 @@ func (s *Server) handleListServiceTypes(w http.ResponseWriter, r *http.Request) 
 	writeJSON(w, http.StatusOK, mapSlice(items, toServiceTypeDTO))
 }
 
+type createServiceTypeRequest struct {
+	Code string `json:"code"`
+	Name string `json:"name"`
+}
+
+func (s *Server) handleCreateServiceType(w http.ResponseWriter, r *http.Request) {
+	var req createServiceTypeRequest
+	if err := decodeJSON(r, &req); err != nil {
+		respondError(w, r, err)
+		return
+	}
+	st, err := s.coverage.CreateServiceType(r.Context(), domain.ServiceType{
+		Code: req.Code, Name: req.Name,
+	})
+	if err != nil {
+		respondError(w, r, err)
+		return
+	}
+	writeJSON(w, http.StatusCreated, toServiceTypeDTO(st))
+}
+
 func (s *Server) handleListContracts(w http.ResponseWriter, r *http.Request) {
 	items, err := s.coverage.ListContracts(r.Context())
 	if err != nil {

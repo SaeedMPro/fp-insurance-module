@@ -1,15 +1,25 @@
 import { useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
+import { Link } from 'react-router-dom'
 import { createCoverageRule, listCoverageRules, listPlans } from '../../api/reference'
 import { apiErrorMessage } from '../../api/client'
 import type { CoveragePlan, CoverageRule, Relation } from '../../api/types'
+import { ROUTES } from '../../app/routes'
 import { useServiceTypes } from '../../hooks/useServiceTypes'
 import { useToast } from '../../context/useToast'
 import { Card } from '../../components/Card'
 import { ErrorBanner } from '../../components/ErrorBanner'
 import { Spinner } from '../../components/Spinner'
 import { Field, inputClass } from '../../components/FormField'
-import { dateInputToRFC3339, formatDate, formatMoney, formatNumber, RELATION_LABELS } from '../../lib/format'
+import { PersianDateInput } from '../../components/PersianDateInput'
+import {
+  dateInputToRFC3339,
+  formatDate,
+  formatMoney,
+  formatNumber,
+  RELATION_LABELS,
+  todayYmd,
+} from '../../lib/format'
 
 const RELATIONS: Relation[] = ['self', 'spouse', 'child', 'parent']
 
@@ -29,7 +39,7 @@ export function CoverageRules() {
   const [annualCap, setAnnualCap] = useState('')
   const [waitingPeriodDays, setWaitingPeriodDays] = useState('0')
   const [eligibleRelations, setEligibleRelations] = useState<Relation[]>(['self'])
-  const [effectiveFrom, setEffectiveFrom] = useState('')
+  const [effectiveFrom, setEffectiveFrom] = useState(todayYmd)
   const [submitting, setSubmitting] = useState(false)
   const [formError, setFormError] = useState<string | null>(null)
 
@@ -79,7 +89,7 @@ export function CoverageRules() {
       setPerClaimCap('')
       setAnnualCap('')
       setWaitingPeriodDays('0')
-      setEffectiveFrom('')
+      setEffectiveFrom(todayYmd())
       reload()
     } catch (err) {
       setFormError(apiErrorMessage(err))
@@ -122,10 +132,17 @@ export function CoverageRules() {
               <option value="">انتخاب نوع خدمت…</option>
               {serviceTypes.map((st) => (
                 <option key={st.id} value={st.id}>
-                  {st.name_fa || st.name}
+                  {st.name}
                 </option>
               ))}
             </select>
+            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+              خدمت جدید در فهرست نیست؟ از{' '}
+              <Link to={ROUTES.serviceTypes.path} className="text-brand-600 hover:underline dark:text-brand-400">
+                انواع خدمت
+              </Link>{' '}
+              اضافه کنید.
+            </p>
           </Field>
           <Field label="درصد پوشش">
             <input
@@ -153,7 +170,7 @@ export function CoverageRules() {
             <input type="number" min="0" value={annualCap} onChange={(e) => setAnnualCap(e.target.value)} className={inputClass} />
           </Field>
           <Field label="تاریخ اعمال از">
-            <input type="date" value={effectiveFrom} onChange={(e) => setEffectiveFrom(e.target.value)} className={inputClass} />
+            <PersianDateInput value={effectiveFrom} onChange={setEffectiveFrom} />
           </Field>
           <div>
             <span className="block text-sm font-medium text-slate-700 dark:text-slate-300">نسبت‌های مجاز</span>
@@ -220,7 +237,7 @@ export function CoverageRules() {
                   return (
                     <tr key={rule.id} className={isActive ? 'bg-emerald-50/50 dark:bg-emerald-950/20' : ''}>
                       <td className="px-5 py-3">{plan?.name ?? rule.plan_id}</td>
-                      <td className="px-5 py-3">{st ? st.name_fa || st.name : rule.service_type_id}</td>
+                      <td className="px-5 py-3">{st ? st.name : rule.service_type_id}</td>
                       <td className="px-5 py-3">{formatNumber(rule.coverage_percent)}٪</td>
                       <td className="px-5 py-3">{formatMoney(rule.per_claim_cap)}</td>
                       <td className="px-5 py-3">{formatMoney(rule.annual_cap)}</td>

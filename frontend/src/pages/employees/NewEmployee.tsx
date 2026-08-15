@@ -7,7 +7,8 @@ import { listPlans } from '../../api/reference'
 import type { CoveragePlan } from '../../api/types'
 import { Card } from '../../components/Card'
 import { ErrorBanner } from '../../components/ErrorBanner'
-import { dateInputToRFC3339 } from '../../lib/format'
+import { PersianDateInput } from '../../components/PersianDateInput'
+import { dateInputToRFC3339, todayYmd } from '../../lib/format'
 import { inputClass, Field } from '../../components/FormField'
 
 export function NewEmployee() {
@@ -16,7 +17,7 @@ export function NewEmployee() {
   const [personnelNo, setPersonnelNo] = useState('')
   const [fullName, setFullName] = useState('')
   const [nationalId, setNationalId] = useState('')
-  const [hireDate, setHireDate] = useState('')
+  const [hireDate, setHireDate] = useState(todayYmd)
   const [department, setDepartment] = useState('')
   const [planId, setPlanId] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -67,7 +68,7 @@ export function NewEmployee() {
             <input value={nationalId} onChange={(e) => setNationalId(e.target.value)} className={inputClass} />
           </Field>
           <Field label="تاریخ استخدام">
-            <input type="date" value={hireDate} onChange={(e) => setHireDate(e.target.value)} className={inputClass} />
+            <PersianDateInput value={hireDate} onChange={setHireDate} />
           </Field>
           <Field label="واحد سازمانی">
             <input value={department} onChange={(e) => setDepartment(e.target.value)} className={inputClass} />

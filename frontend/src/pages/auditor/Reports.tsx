@@ -18,7 +18,17 @@ import type { ReportSummary, SpendByEmployee, SpendByMonth, SpendByServiceType }
 import { Card, StatTile } from '../../components/Card'
 import { ErrorBanner } from '../../components/ErrorBanner'
 import { Spinner } from '../../components/Spinner'
-import { formatMoney, formatNumber, dateInputToRFC3339 } from '../../lib/format'
+import { PersianDateInput } from '../../components/PersianDateInput'
+import {
+  dateInputToRFC3339,
+  formatMoney,
+  formatNumber,
+  startOfJalaliYearYmd,
+  todayYmd,
+} from '../../lib/format'
+
+const filterControlClass =
+  'mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100'
 
 const BAR_COLORS = ['#2563eb', '#0891b2', '#7c3aed', '#db2777', '#ea580c', '#16a34a', '#ca8a04']
 
@@ -26,9 +36,16 @@ function chartMoney(value: number): string {
   return formatMoney(value)
 }
 
+function defaultReportRange(): ReportDateRange {
+  return {
+    from: dateInputToRFC3339(startOfJalaliYearYmd()),
+    to: dateInputToRFC3339(todayYmd()),
+  }
+}
+
 export function Reports() {
-  const [from, setFrom] = useState('')
-  const [to, setTo] = useState('')
+  const [from, setFrom] = useState(startOfJalaliYearYmd)
+  const [to, setTo] = useState(todayYmd)
 
   const [summary, setSummary] = useState<ReportSummary | null>(null)
   const [byEmployee, setByEmployee] = useState<SpendByEmployee[]>([])
@@ -57,7 +74,7 @@ export function Reports() {
   }
 
   useEffect(() => {
-    load({})
+    load(defaultReportRange())
   }, [])
 
   function applyFilter() {
@@ -77,23 +94,13 @@ export function Reports() {
           </p>
         </div>
         <div className="flex flex-wrap items-end gap-3">
-          <label className="text-sm text-slate-500 dark:text-slate-400">
-            از
-            <input
-              type="date"
-              value={from}
-              onChange={(e) => setFrom(e.target.value)}
-              className="mt-1 block rounded-md border border-slate-300 px-2 py-1 text-sm text-slate-900 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
-            />
+          <label className="min-w-[11rem] text-sm font-medium text-slate-600 dark:text-slate-300">
+            از تاریخ
+            <PersianDateInput value={from} onChange={setFrom} className={filterControlClass} />
           </label>
-          <label className="text-sm text-slate-500 dark:text-slate-400">
-            تا
-            <input
-              type="date"
-              value={to}
-              onChange={(e) => setTo(e.target.value)}
-              className="mt-1 block rounded-md border border-slate-300 px-2 py-1 text-sm text-slate-900 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
-            />
+          <label className="min-w-[11rem] text-sm font-medium text-slate-600 dark:text-slate-300">
+            تا تاریخ
+            <PersianDateInput value={to} onChange={setTo} className={filterControlClass} />
           </label>
           <button
             type="button"

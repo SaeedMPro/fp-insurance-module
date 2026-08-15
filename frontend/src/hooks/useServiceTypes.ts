@@ -4,13 +4,22 @@ import type { ServiceType } from '../api/types'
 
 let cache: ServiceType[] | null = null
 
+/** Update the session cache after admin creates a service type. */
+export function primeServiceTypesCache(data: ServiceType[]) {
+  cache = data
+}
+
 /** Service types rarely change within a session; fetch once and cache in memory. */
 export function useServiceTypes() {
   const [serviceTypes, setServiceTypes] = useState<ServiceType[]>(cache ?? [])
   const [loading, setLoading] = useState(!cache)
 
   useEffect(() => {
-    if (cache) return
+    if (cache) {
+      setServiceTypes(cache)
+      setLoading(false)
+      return
+    }
     let cancelled = false
     listServiceTypes()
       .then((data) => {

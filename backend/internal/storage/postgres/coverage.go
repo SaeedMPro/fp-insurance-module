@@ -89,6 +89,15 @@ func (s *Store) ListServiceTypes(ctx context.Context) ([]domain.ServiceType, err
 	return out, nil
 }
 
+func (s *Store) CreateServiceType(ctx context.Context, st *domain.ServiceType) error {
+	row := serviceTypeFromDomain(*st)
+	if err := s.ctx(ctx).Create(&row).Error; err != nil {
+		return err
+	}
+	*st = row.toDomain()
+	return nil
+}
+
 func (s *Store) ListContracts(ctx context.Context) ([]domain.InsuranceContract, error) {
 	var rows []contractRow
 	if err := s.ctx(ctx).Order("start_date DESC").Find(&rows).Error; err != nil {

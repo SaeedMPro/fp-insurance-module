@@ -152,7 +152,7 @@ export function ClaimDetail() {
           <Detail label="ذی‌نفع" value={BENEFICIARY_LABELS[claim.beneficiary_type]} />
           <Detail
             label="نوع خدمت"
-            value={serviceType ? serviceType.name_fa || serviceType.name : <span className="dir-ltr">{claim.service_type_id}</span>}
+            value={serviceType ? serviceType.name : <span className="dir-ltr">{claim.service_type_id}</span>}
           />
           <Detail label="تاریخ فاکتور" value={formatDate(claim.receipt_date)} />
           <Detail label="مبلغ درخواستی" value={formatMoney(claim.requested_amount)} />
@@ -256,7 +256,17 @@ export function ClaimDetail() {
       </Card>
 
       <Card>
-        <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-50">تاریخچه</h2>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-50">تاریخچه</h2>
+          {(user?.role === 'admin' || user?.role === 'auditor') && id && (
+            <Link
+              to={`/audit-logs?entity_type=claim&entity_id=${encodeURIComponent(id)}`}
+              className="text-xs font-medium text-brand-700 hover:underline dark:text-brand-300"
+            >
+              مشاهده در تاریخچهٔ کامل
+            </Link>
+          )}
+        </div>
         {history.length === 0 ? (
           <p className="mt-2 text-sm text-slate-400 dark:text-slate-500">هنوز تاریخچه‌ای وجود ندارد.</p>
         ) : (

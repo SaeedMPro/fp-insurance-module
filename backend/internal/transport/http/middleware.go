@@ -5,6 +5,8 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/google/uuid"
+
 	"insurance-module/internal/auth"
 	"insurance-module/internal/domain"
 )
@@ -13,9 +15,15 @@ type contextKey int
 
 const actorKey contextKey = iota
 
-// authenticate verifies the Bearer JWT and stores the resulting domain.Actor
-// in the request context. Per-route role checks are requireRole's job.
-func authenticate(secret string) func(http.Handler) http.Handler {
+// userResolver looks up the authenticated account so a JWT for a deleted /
+// re-seeded user cannot keep acting (would otherwise 500 on FK writes).
+type userResolver interface {
+	Get(ctx context.Context, id uuid.UUID) (domain.User, error)
+}
+
+// authenticate verifies the Bearer JWT, confirms the user still exists, and
+// stores a fresh domain.Actor in the request context.
+func authenticate(secret string, users userResolver) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			header := r.Header.Get("Authorization")
@@ -28,7 +36,22 @@ func authenticate(secret string) func(http.Handler) http.Handler {
 				writeError(w, http.StatusUnauthorized, "invalid or expired token")
 				return
 			}
-			ctx := context.WithValue(r.Context(), actorKey, claims.Actor())
+			if users == nil {
+				ctx := context.WithValue(r.Context(), actorKey, claims.Actor())
+				next.ServeHTTP(w, r.WithContext(ctx))
+				return
+			}
+			user, err := users.Get(r.Context(), claims.UserID)
+			if err != nil {
+				writeError(w, http.StatusUnauthorized, "session expired; please log in again")
+				return
+			}
+			if !user.IsActive {
+				writeError(w, http.StatusUnauthorized, "account is inactive")
+				return
+			}
+			actor := domain.Actor{UserID: user.ID, Username: user.Username, Role: user.Role}
+			ctx := context.WithValue(r.Context(), actorKey, actor)
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})
 	}

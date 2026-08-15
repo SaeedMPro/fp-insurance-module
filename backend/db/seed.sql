@@ -18,12 +18,12 @@ INSERT INTO coverage_plans (contract_id, name, description)
 SELECT id, 'ویژه', 'طرح پوشش بیمه تکمیلی ویژه با سقف‌های بالاتر'
 FROM insurance_contracts WHERE name = 'قرارداد سالانه بیمه تکمیلی ۱۴۰۴';
 
-INSERT INTO service_types (code, name, name_fa) VALUES
-    ('outpatient_visit', 'Outpatient Visit', 'ویزیت'),
-    ('pharmacy',         'Pharmacy / Medicine', 'دارو'),
-    ('dental',           'Dental', 'دندان‌پزشکی'),
-    ('hospitalization',  'Hospitalization', 'بستری'),
-    ('optometry',        'Optometry / Eyewear', 'عینک');
+INSERT INTO service_types (code, name) VALUES
+    ('outpatient_visit', 'ویزیت'),
+    ('pharmacy',         'دارو'),
+    ('dental',           'دندان‌پزشکی'),
+    ('hospitalization',  'بستری'),
+    ('optometry',        'عینک');
 
 -- Standard plan rules
 INSERT INTO coverage_rules (plan_id, service_type_id, coverage_percent, per_claim_cap, annual_cap, waiting_period_days, eligible_relations, effective_from)

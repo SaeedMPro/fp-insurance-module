@@ -66,7 +66,13 @@ func userFromDomain(u domain.User) userRow {
 }
 
 func (r serviceTypeRow) toDomain() domain.ServiceType {
-	return domain.ServiceType{ID: r.ID, Code: r.Code, Name: r.Name, NameFa: r.NameFa, CreatedAt: r.CreatedAt}
+	return domain.ServiceType{ID: r.ID, Code: r.Code, Name: r.Name, CreatedAt: r.CreatedAt}
+}
+
+func serviceTypeFromDomain(st domain.ServiceType) serviceTypeRow {
+	return serviceTypeRow{
+		ID: st.ID, Code: st.Code, Name: st.Name, CreatedAt: st.CreatedAt,
+	}
 }
 
 func (r ruleRow) toDomain() domain.CoverageRule {

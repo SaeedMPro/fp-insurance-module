@@ -45,7 +45,8 @@ export interface paths {
         };
         get: operations["listServiceTypes"];
         put?: never;
-        post?: never;
+        /** @description Admin only. Adds a claimable service category to the catalogue. */
+        post: operations["createServiceType"];
         delete?: never;
         options?: never;
         head?: never;
@@ -458,7 +459,7 @@ export interface paths {
         /** @description Admin only. */
         get: operations["listUsers"];
         put?: never;
-        /** @description Admin only. */
+        /** @description Admin only. Role must be reviewer, employee, or auditor — admin cannot be created via this endpoint (use seed or make create-admin). */
         post: operations["createUser"];
         delete?: never;
         options?: never;
@@ -479,7 +480,7 @@ export interface paths {
         delete?: never;
         options?: never;
         head?: never;
-        /** @description Admin only. Partial update (role / active / password). */
+        /** @description Admin only. Partial update (role / active / password). Cannot promote to admin or demote the existing admin; password and is_active remain allowed. */
         patch: operations["updateUser"];
         trace?: never;
     };
@@ -526,6 +527,8 @@ export interface components {
         };
         /** @enum {string} */
         Role: "admin" | "reviewer" | "employee" | "auditor";
+        /** @enum {string} */
+        AssignableRole: "reviewer" | "employee" | "auditor";
         /** @enum {string} */
         EmploymentStatus: "active" | "terminated";
         /** @enum {string} */
@@ -583,7 +586,6 @@ export interface components {
             id: string;
             code: string;
             name: string;
-            name_fa: string;
             /** Format: date-time */
             created_at: string;
         };
@@ -791,6 +793,12 @@ export interface components {
             /** Format: date-time */
             birth_date?: string | null;
         };
+        CreateServiceTypeRequest: {
+            /** @description Stable machine code (lowercase, digits, underscores), unique. */
+            code: string;
+            /** @description Display name (Persian). */
+            name: string;
+        };
         CreateContractRequest: {
             name: string;
             /** Format: date-time */
@@ -818,16 +826,18 @@ export interface components {
             /** Format: date-time */
             effective_from: string;
         };
+        /** @description Creates a non-admin user. Role must be reviewer, employee, or auditor; admin is rejected (403). Bootstrap the sole admin with seed or make create-admin. */
         CreateUserRequest: {
             username: string;
             password: string;
             full_name: string;
-            role: components["schemas"]["Role"];
+            role: components["schemas"]["AssignableRole"];
             /** Format: uuid */
             employee_id?: string | null;
         };
+        /** @description Partial update. Cannot set role to admin, and cannot change the existing admin's role away from admin (403). Password and is_active for admin are allowed. */
         UpdateUserRequest: {
-            role?: components["schemas"]["Role"];
+            role?: components["schemas"]["AssignableRole"];
             is_active?: boolean;
             password?: string;
         };
@@ -943,6 +953,31 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ServiceType"][];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    createServiceType: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateServiceTypeRequest"];
+            };
+        };
+        responses: {
+            /** @description Created. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ServiceType"];
                 };
             };
             default: components["responses"]["Error"];

@@ -29,7 +29,6 @@ erDiagram
         uuid id PK
         string code UK
         string name
-        string name_fa
     }
 
     COVERAGE_RULES {
@@ -166,10 +165,11 @@ insurer (seed data: "Annual Supplementary Insurance Contract 1404",
 attached to them, not in any plan-level field — the plan itself carries no
 benefit numbers.
 
-**`service_types`** — the fixed catalogue of claimable service categories:
-`outpatient_visit`, `pharmacy`, `dental`, `hospitalization`, `optometry`
-(seeded in `000002_seed_reference_data.up.sql`, each with an English
-`name` and a Persian `name_fa`, e.g. `دندان‌پزشکی` for dental).
+**`service_types`** — the catalogue of claimable service categories
+(seeded with `outpatient_visit`, `pharmacy`, `dental`, `hospitalization`,
+`optometry`; admins can add more via `POST /service-types`). Each row has a
+stable `code` and a display `name` (Persian in the seed/UI), e.g. `دندان‌پزشکی`
+for dental.
 
 **`coverage_rules`** — the config-driven policy engine's entire data
 source, and the table this project is built around. One row is one

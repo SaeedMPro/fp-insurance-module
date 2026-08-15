@@ -1,3 +1,5 @@
+import { toGregorian, toJalaali, jalaaliMonthLength, isValidJalaaliDate } from './jalaali.js'
+
 import type { BeneficiaryType, ClaimStatus, Relation, Role } from '../api/types'
 
 // The UI is Persian (fa-IR): numbers use Persian digits with grouping, and dates
@@ -5,6 +7,7 @@ import type { BeneficiaryType, ClaimStatus, Relation, Role } from '../api/types'
 // converted for display here.
 
 const faNumber = new Intl.NumberFormat('fa-IR', { maximumFractionDigits: 0 })
+const faDigits = new Intl.NumberFormat('fa-IR', { useGrouping: false, maximumFractionDigits: 0 })
 
 /** Format a Rial amount with Persian digits and thousands separators. */
 export function formatMoney(value: number | null | undefined): string {
@@ -16,6 +19,12 @@ export function formatMoney(value: number | null | undefined): string {
 export function formatNumber(value: number | null | undefined): string {
   if (value === null || value === undefined) return '—'
   return faNumber.format(value)
+}
+
+/** Persian digits without thousands separators (years, calendar days). */
+export function formatDigits(value: number | null | undefined): string {
+  if (value === null || value === undefined) return '—'
+  return faDigits.format(value)
 }
 
 const faDateTime = new Intl.DateTimeFormat('fa-IR', {
@@ -48,13 +57,82 @@ export function formatDate(value: string | null | undefined): string {
   return faDate.format(d)
 }
 
-/** Convert a bare <input type="date"> value ("YYYY-MM-DD", Gregorian) to RFC3339 midnight UTC. */
+function pad2(n: number): string {
+  return String(n).padStart(2, '0')
+}
+
+/** Today's civil date as Gregorian `YYYY-MM-DD` (local timezone). */
+export function todayYmd(): string {
+  const d = new Date()
+  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`
+}
+
+/** Parse Gregorian `YYYY-MM-DD` → Jalali parts. */
+export function gregorianYmdToJalali(ymd: string): { jy: number; jm: number; jd: number } | null {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(ymd)
+  if (!m) return null
+  const gy = Number(m[1])
+  const gm = Number(m[2])
+  const gd = Number(m[3])
+  if (!gy || !gm || !gd) return null
+  return toJalaali(gy, gm, gd)
+}
+
+/** Jalali parts → Gregorian `YYYY-MM-DD`, or '' if invalid. */
+export function jalaliToGregorianYmd(jy: number, jm: number, jd: number): string {
+  if (!isValidJalaaliDate(jy, jm, jd)) return ''
+  const { gy, gm, gd } = toGregorian(jy, jm, jd)
+  return `${gy}-${pad2(gm)}-${pad2(gd)}`
+}
+
+/** First day of the current Jalali year, as Gregorian `YYYY-MM-DD`. */
+export function startOfJalaliYearYmd(): string {
+  const j = toJalaali(new Date().getFullYear(), new Date().getMonth() + 1, new Date().getDate())
+  return jalaliToGregorianYmd(j.jy, 1, 1)
+}
+
+/** Add whole Gregorian years to a `YYYY-MM-DD` date. */
+export function addYearsYmd(ymd: string, years: number): string {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(ymd)
+  if (!m) return ymd
+  const d = new Date(Number(m[1]) + years, Number(m[2]) - 1, Number(m[3]))
+  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`
+}
+
+export function jalaliMonthDayCount(jy: number, jm: number): number {
+  return jalaaliMonthLength(jy, jm)
+}
+
+export const JALAALI_MONTHS = [
+  'فروردین',
+  'اردیبهشت',
+  'خرداد',
+  'تیر',
+  'مرداد',
+  'شهریور',
+  'مهر',
+  'آبان',
+  'آذر',
+  'دی',
+  'بهمن',
+  'اسفند',
+] as const
+
+/** Human-readable Jalali date from Gregorian `YYYY-MM-DD`, e.g. «۲۵ مرداد ۱۴۰۵». */
+export function formatJalaliYmd(ymd: string | null | undefined): string {
+  if (!ymd) return ''
+  const j = gregorianYmdToJalali(ymd)
+  if (!j) return ymd
+  return `${formatDigits(j.jd)} ${JALAALI_MONTHS[j.jm - 1]} ${formatDigits(j.jy)}`
+}
+
+/** Convert a Gregorian date field value ("YYYY-MM-DD") to RFC3339 midnight UTC. */
 export function dateInputToRFC3339(value: string): string {
   if (!value) return value
   return `${value}T00:00:00Z`
 }
 
-/** Convert an RFC3339 timestamp to a bare "YYYY-MM-DD" for <input type="date">. */
+/** Convert an RFC3339 timestamp to Gregorian "YYYY-MM-DD" for date fields. */
 export function rfc3339ToDateInput(value: string | null | undefined): string {
   if (!value) return ''
   return value.slice(0, 10)

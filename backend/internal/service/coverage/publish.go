@@ -2,7 +2,9 @@ package coverage
 
 import (
 	"context"
+	"strings"
 	"time"
+	"unicode"
 
 	"github.com/google/uuid"
 
@@ -100,6 +102,47 @@ func (s *Service) ListRules(ctx context.Context, f domain.RuleFilter) ([]domain.
 
 func (s *Service) ListServiceTypes(ctx context.Context) ([]domain.ServiceType, error) {
 	return s.repo.ListServiceTypes(ctx)
+}
+
+// CreateServiceType adds a claimable service category to the catalogue.
+// New types appear in claim/rule dropdowns immediately; they still need a
+// coverage rule before the pricing engine will accept claims for them.
+func (s *Service) CreateServiceType(ctx context.Context, st domain.ServiceType) (domain.ServiceType, error) {
+	code := strings.TrimSpace(st.Code)
+	name := strings.TrimSpace(st.Name)
+	if code == "" || name == "" {
+		return domain.ServiceType{}, domain.Validationf("code and name are required")
+	}
+	if len(code) > 30 || len(name) > 100 {
+		return domain.ServiceType{}, domain.Validationf("code or name exceeds maximum length")
+	}
+	if !isServiceTypeCode(code) {
+		return domain.ServiceType{}, domain.Validationf("code must be lowercase letters, digits, and underscores")
+	}
+	if _, err := s.repo.GetServiceTypeByCode(ctx, code); err == nil {
+		return domain.ServiceType{}, domain.Conflictf("service type code already exists")
+	} else if domain.KindOf(err) != domain.KindNotFound {
+		return domain.ServiceType{}, err
+	}
+
+	created := domain.ServiceType{Code: code, Name: name}
+	if err := s.repo.CreateServiceType(ctx, &created); err != nil {
+		return domain.ServiceType{}, err
+	}
+	return created, nil
+}
+
+func isServiceTypeCode(code string) bool {
+	if code == "" || code[0] < 'a' || code[0] > 'z' {
+		return false
+	}
+	for _, r := range code {
+		if r == '_' || unicode.IsDigit(r) || (r >= 'a' && r <= 'z') {
+			continue
+		}
+		return false
+	}
+	return true
 }
 
 func (s *Service) ListContracts(ctx context.Context) ([]domain.InsuranceContract, error) {

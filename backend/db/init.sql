@@ -52,7 +52,6 @@ CREATE TABLE service_types (
     id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     code       VARCHAR(30) UNIQUE NOT NULL,
     name       VARCHAR(100) NOT NULL,
-    name_fa    VARCHAR(100),
     created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 

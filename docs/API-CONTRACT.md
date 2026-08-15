@@ -78,6 +78,12 @@ Response 200: array of, one per service type:
 ### GET /service-types
 Auth: any authenticated user. Response 200: `ServiceType[]` (see `internal/domain.ServiceType`).
 
+### POST /service-types
+Auth: admin. Request: `{"code","name"}`. Response 201: `ServiceType`.
+`code` must be unique, lowercase letters/digits/underscores (max 30). New types
+appear in claim and coverage-rule dropdowns; they still need a coverage rule
+before pricing accepts claims for them.
+
 ### GET /contracts
 Auth: any authenticated user. Response 200: `InsuranceContract[]`.
 

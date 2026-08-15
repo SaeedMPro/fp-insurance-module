@@ -150,7 +150,7 @@ export function ClaimsList() {
                   return (
                     <tr key={claim.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50">
                       <td className="px-5 py-3">{formatDate(claim.receipt_date)}</td>
-                      <td className="px-5 py-3">{st ? st.name_fa || st.name : '—'}</td>
+                      <td className="px-5 py-3">{st ? st.name : '—'}</td>
                       <td className="px-5 py-3">{formatMoney(claim.requested_amount)}</td>
                       <td className="px-5 py-3">{formatMoney(claim.payable_amount)}</td>
                       <td className="px-5 py-3">

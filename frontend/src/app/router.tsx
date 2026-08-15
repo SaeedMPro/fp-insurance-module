@@ -21,6 +21,7 @@ const EmployeesList = lazy(() => import('../pages/employees/EmployeesList').then
 const NewEmployee = lazy(() => import('../pages/employees/NewEmployee').then((m) => ({ default: m.NewEmployee })))
 const EmployeeDetail = lazy(() => import('../pages/employees/EmployeeDetail').then((m) => ({ default: m.EmployeeDetail })))
 const CoverageRules = lazy(() => import('../pages/admin/CoverageRules').then((m) => ({ default: m.CoverageRules })))
+const ServiceTypes = lazy(() => import('../pages/admin/ServiceTypes').then((m) => ({ default: m.ServiceTypes })))
 const Contracts = lazy(() => import('../pages/admin/Contracts').then((m) => ({ default: m.Contracts })))
 const Plans = lazy(() => import('../pages/admin/Plans').then((m) => ({ default: m.Plans })))
 const Users = lazy(() => import('../pages/admin/Users').then((m) => ({ default: m.Users })))
@@ -38,6 +39,7 @@ const GUARDED: Array<{ def: RouteDef; element: React.ReactNode }> = [
   { def: ROUTES.newEmployee, element: <NewEmployee /> },
   { def: ROUTES.employeeDetail, element: <EmployeeDetail /> },
   { def: ROUTES.coverageRules, element: <CoverageRules /> },
+  { def: ROUTES.serviceTypes, element: <ServiceTypes /> },
   { def: ROUTES.contracts, element: <Contracts /> },
   { def: ROUTES.plans, element: <Plans /> },
   { def: ROUTES.users, element: <Users /> },

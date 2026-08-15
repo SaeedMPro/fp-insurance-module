@@ -8,7 +8,13 @@ import { Card } from '../../components/Card'
 import { ErrorBanner } from '../../components/ErrorBanner'
 import { Spinner } from '../../components/Spinner'
 import { Field, inputClass } from '../../components/FormField'
-import { dateInputToRFC3339, formatDate } from '../../lib/format'
+import { PersianDateInput } from '../../components/PersianDateInput'
+import { addYearsYmd, dateInputToRFC3339, formatDate, todayYmd } from '../../lib/format'
+
+function defaultContractRange() {
+  const start = todayYmd()
+  return { start, end: addYearsYmd(start, 1) }
+}
 
 export function Contracts() {
   const { showToast } = useToast()
@@ -17,8 +23,8 @@ export function Contracts() {
   const [error, setError] = useState<string | null>(null)
 
   const [name, setName] = useState('')
-  const [startDate, setStartDate] = useState('')
-  const [endDate, setEndDate] = useState('')
+  const [startDate, setStartDate] = useState(() => defaultContractRange().start)
+  const [endDate, setEndDate] = useState(() => defaultContractRange().end)
   const [isActive, setIsActive] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [formError, setFormError] = useState<string | null>(null)
@@ -50,8 +56,9 @@ export function Contracts() {
       })
       showToast('قرارداد ایجاد شد.', 'success')
       setName('')
-      setStartDate('')
-      setEndDate('')
+      const range = defaultContractRange()
+      setStartDate(range.start)
+      setEndDate(range.end)
       setIsActive(true)
       reload()
     } catch (err) {
@@ -83,10 +90,10 @@ export function Contracts() {
             </select>
           </Field>
           <Field label="تاریخ شروع">
-            <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className={inputClass} />
+            <PersianDateInput value={startDate} onChange={setStartDate} />
           </Field>
           <Field label="تاریخ پایان">
-            <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className={inputClass} />
+            <PersianDateInput value={endDate} onChange={setEndDate} />
           </Field>
           <div className="sm:col-span-2">
             <button

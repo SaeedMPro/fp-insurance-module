@@ -57,7 +57,6 @@ type ServiceType struct {
 	ID        uuid.UUID
 	Code      string
 	Name      string
-	NameFa    string
 	CreatedAt time.Time
 }
 

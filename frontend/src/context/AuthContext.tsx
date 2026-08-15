@@ -1,6 +1,6 @@
 import { createContext, useCallback, useEffect, useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
-import { login as apiLogin } from '../api/auth'
+import { login as apiLogin, me } from '../api/auth'
 import { clearAuth, getStoredUser, getToken, setAuth, setUnauthorizedHandler } from '../api/client'
 import type { User } from '../api/types'
 
@@ -21,13 +21,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
+    let cancelled = false
     const storedToken = getToken()
     const storedUser = getStoredUser<User>()
-    if (storedToken && storedUser) {
-      setToken(storedToken)
-      setUser(storedUser)
+    if (!storedToken || !storedUser) {
+      setLoading(false)
+      return
     }
-    setLoading(false)
+    // Re-validate against the API: a token from a previous DB seed is still a
+    // valid JWT but its user id no longer exists — force re-login.
+    setToken(storedToken)
+    setUser(storedUser)
+    me()
+      .then((fresh) => {
+        if (cancelled) return
+        setAuth(storedToken, fresh)
+        setUser(fresh)
+      })
+      .catch(() => {
+        if (cancelled) return
+        clearAuth()
+        setToken(null)
+        setUser(null)
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false)
+      })
+    return () => {
+      cancelled = true
+    }
   }, [])
 
   const logout = useCallback(() => {

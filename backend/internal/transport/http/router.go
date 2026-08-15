@@ -106,7 +106,7 @@ func NewRouter(cfg Config, svcs Services) http.Handler {
 	r.Get("/swagger", handleSwaggerUI)
 	r.Get("/swagger/", handleSwaggerUI)
 
-	authed := authenticate(cfg.JWTSecret)
+	authed := authenticate(cfg.JWTSecret, svcs.Users)
 	adminOnly := requireRole(domain.RoleAdmin)
 	staff := requireRole(domain.RoleReviewer, domain.RoleAdmin)
 	adminOrAuditor := requireRole(domain.RoleAdmin, domain.RoleAuditor)
@@ -181,6 +181,7 @@ func NewRouter(cfg Config, svcs Services) http.Handler {
 			r.Patch("/employees/{id}", s.handleUpdateEmployee)
 			r.Post("/employees/{id}/dependents", s.handleCreateDependent)
 
+			r.Post("/service-types", s.handleCreateServiceType)
 			r.Post("/contracts", s.handleCreateContract)
 			r.Post("/plans", s.handleCreatePlan)
 			r.Post("/coverage-rules", s.handleCreateCoverageRule)

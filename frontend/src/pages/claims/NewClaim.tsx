@@ -10,7 +10,8 @@ import { useServiceTypes } from '../../hooks/useServiceTypes'
 import { Card } from '../../components/Card'
 import { ErrorBanner } from '../../components/ErrorBanner'
 import { Field, inputClass } from '../../components/FormField'
-import { BENEFICIARY_LABELS, RELATION_LABELS, dateInputToRFC3339 } from '../../lib/format'
+import { PersianDateInput } from '../../components/PersianDateInput'
+import { BENEFICIARY_LABELS, RELATION_LABELS, dateInputToRFC3339, todayYmd } from '../../lib/format'
 
 export function NewClaim() {
   const { user } = useAuth()
@@ -25,7 +26,7 @@ export function NewClaim() {
   const [dependentId, setDependentId] = useState('')
   const [serviceTypeId, setServiceTypeId] = useState('')
   const [requestedAmount, setRequestedAmount] = useState('')
-  const [receiptDate, setReceiptDate] = useState('')
+  const [receiptDate, setReceiptDate] = useState(todayYmd)
   const [description, setDescription] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
@@ -157,7 +158,7 @@ export function NewClaim() {
               <option value="">انتخاب نوع خدمت…</option>
               {serviceTypes.map((st) => (
                 <option key={st.id} value={st.id}>
-                  {st.name_fa || st.name}
+                  {st.name}
                 </option>
               ))}
             </select>
@@ -175,12 +176,7 @@ export function NewClaim() {
           </Field>
 
           <Field label="تاریخ فاکتور">
-            <input
-              type="date"
-              value={receiptDate}
-              onChange={(e) => setReceiptDate(e.target.value)}
-              className={inputClass}
-            />
+            <PersianDateInput value={receiptDate} onChange={setReceiptDate} />
           </Field>
 
           <Field label="توضیحات">

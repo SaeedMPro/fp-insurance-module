@@ -60,6 +60,11 @@ const EXACT: Record<string, string> = {
     'انتخاب حداقل یک نسبت مجاز الزامی است.',
   'coverage percent must be between 0 and 100':
     'درصد پوشش باید بین ۰ و ۱۰۰ باشد.',
+  'code and name are required': 'کد و نام الزامی است.',
+  'code or name exceeds maximum length': 'طول کد یا نام از حد مجاز بیشتر است.',
+  'code must be lowercase letters, digits, and underscores':
+    'کد فقط می‌تواند حروف کوچک انگلیسی، عدد و زیرخط باشد.',
+  'service type code already exists': 'این کد نوع خدمت قبلاً ثبت شده است.',
   'username, password and full name are required':
     'نام کاربری، گذرواژه و نام و نام خانوادگی الزامی است.',
   'admin accounts cannot be created via the API; use seed or make create-admin':
@@ -68,12 +73,12 @@ const EXACT: Record<string, string> = {
     'نمی‌توانید نقش مدیر سامانه را اختصاص دهید.',
   'the admin role cannot be changed via the API':
     'نمی‌توانید نقش مدیر سامانه را تغییر دهید.',
+  'session expired; please log in again': 'نشست منقضی شده؛ دوباره وارد شوید.',
+  'account is inactive': 'حساب کاربری غیرفعال است.',
 
   // --- server ------------------------------------------------------------
   'internal error': 'خطای داخلی سامانه. اگر تکرار شد با پشتیبانی تماس بگیرید.',
 }
-
-/** Entity names as they appear in the API's "<entity> not found" messages. */
 const ENTITIES: Record<string, string> = {
   claim: 'درخواست',
   employee: 'کارمند',

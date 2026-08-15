@@ -7,6 +7,16 @@ export async function listServiceTypes(): Promise<ServiceType[]> {
   return data
 }
 
+export interface CreateServiceTypeRequest {
+  code: string
+  name: string
+}
+
+export async function createServiceType(req: CreateServiceTypeRequest): Promise<ServiceType> {
+  const { data } = await client.post<ServiceType>('/service-types', req)
+  return data
+}
+
 export async function listContracts(): Promise<InsuranceContract[]> {
   const { data } = await client.get<InsuranceContract[]>('/contracts')
   return data

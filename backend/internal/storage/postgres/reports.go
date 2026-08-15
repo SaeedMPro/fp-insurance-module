@@ -105,10 +105,10 @@ func (s *Store) SpendByServiceType(ctx context.Context, r domain.ReportRange) ([
 		Joins("JOIN service_types ON service_types.id = claims.service_type_id").
 		Where("claims.status IN ?", paidStatuses).
 		Select(`service_types.code AS service_type_code,
-			COALESCE(NULLIF(service_types.name_fa, ''), service_types.name) AS service_type_name,
+			service_types.name AS service_type_name,
 			COALESCE(SUM(claims.payable_amount), 0) AS total_paid,
 			COUNT(claims.id) AS claim_count`).
-		Group("service_types.code, service_types.name, service_types.name_fa").
+		Group("service_types.code, service_types.name").
 		Order("total_paid DESC")
 	if err := q.Scan(&rows).Error; err != nil {
 		return nil, err
