@@ -76,6 +76,11 @@ e2e: ## Run the browser end-to-end suite against a running stack (make up + make
 	# a config-driven rule change, the return-for-docs + document-upload loop,
 	# RBAC checks, and the audit trail.
 	# Override E2E_BASE_URL / E2E_API_URL / CHROME_PATH if not on the defaults.
+	#
+	# NOTE: this writes to whatever database it points at — it leaves claims,
+	# an uploaded document and a new coverage-rule version behind, because
+	# publishing a rule version is one of the things it proves. Do not run it
+	# against a demo you are about to present; re-seed afterwards instead.
 	cd e2e && npm install --silent && node e2e.mjs
 
 build-frontend: ## Build only the frontend image
