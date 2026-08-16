@@ -67,6 +67,7 @@ const EXACT: Record<string, string> = {
   'service type code already exists': 'این کد نوع خدمت قبلاً ثبت شده است.',
   'username, password and full name are required':
     'نام کاربری، گذرواژه و نام و نام خانوادگی الزامی است.',
+  'password must be at least 8 characters': 'گذرواژه باید حداقل ۸ کاراکتر باشد.',
   'employee role requires a linked employee record':
     'نقش کارمند باید به یک پروندهٔ کارمندی متصل باشد.',
   'admin accounts cannot be created via the API; use seed or make create-admin':
@@ -75,6 +76,8 @@ const EXACT: Record<string, string> = {
     'نمی‌توانید نقش مدیر سامانه را اختصاص دهید.',
   'the admin role cannot be changed via the API':
     'نمی‌توانید نقش مدیر سامانه را تغییر دهید.',
+  'the admin account cannot be deactivated via the API':
+    'حساب مدیر سامانه را نمی‌توان غیرفعال کرد.',
   'session expired; please log in again': 'نشست منقضی شده؛ دوباره وارد شوید.',
   'account is inactive': 'حساب کاربری غیرفعال است.',
 

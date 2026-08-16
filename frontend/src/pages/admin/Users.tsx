@@ -12,6 +12,7 @@ import { Field, inputClass } from '../../components/FormField'
 import { ROLE_LABELS } from '../../lib/format'
 
 const ASSIGNABLE_ROLES: Role[] = ['reviewer', 'employee', 'auditor']
+const MIN_PASSWORD_LEN = 8
 
 export function Users() {
   const { showToast } = useToast()
@@ -29,6 +30,13 @@ export function Users() {
   const [employeeId, setEmployeeId] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [formError, setFormError] = useState<string | null>(null)
+
+  // Password reset dialog
+  const [resetTarget, setResetTarget] = useState<User | null>(null)
+  const [resetPassword, setResetPassword] = useState('')
+  const [resetConfirm, setResetConfirm] = useState('')
+  const [resetError, setResetError] = useState<string | null>(null)
+  const [resetSubmitting, setResetSubmitting] = useState(false)
 
   function reload() {
     setLoading(true)
@@ -51,6 +59,10 @@ export function Users() {
     setFormError(null)
     if (!username || !password || !fullName) {
       setFormError('نام کاربری، گذرواژه و نام و نام خانوادگی الزامی است.')
+      return
+    }
+    if (password.length < MIN_PASSWORD_LEN) {
+      setFormError(`گذرواژه باید حداقل ${MIN_PASSWORD_LEN} کاراکتر باشد.`)
       return
     }
     if (role === 'employee' && !employeeId) {
@@ -101,6 +113,10 @@ export function Users() {
   }
 
   async function handleToggleActive(user: User) {
+    if (user.role === 'admin') {
+      showToast('حساب مدیر سامانه را نمی‌توان غیرفعال کرد.', 'error')
+      return
+    }
     try {
       await updateUser(user.id, { is_active: !user.is_active })
       showToast(`کاربر ${user.username} ${user.is_active ? 'غیرفعال شد' : 'فعال شد'}.`, 'success')
@@ -110,14 +126,44 @@ export function Users() {
     }
   }
 
-  async function handleResetPassword(user: User) {
-    const next = window.prompt(`گذرواژهٔ جدید برای ${user.username} را وارد کنید:`)
-    if (!next) return
+  function openResetPassword(user: User) {
+    setResetTarget(user)
+    setResetPassword('')
+    setResetConfirm('')
+    setResetError(null)
+  }
+
+  function closeResetPassword() {
+    if (resetSubmitting) return
+    setResetTarget(null)
+    setResetPassword('')
+    setResetConfirm('')
+    setResetError(null)
+  }
+
+  async function handleResetPassword(e: FormEvent) {
+    e.preventDefault()
+    if (!resetTarget) return
+    setResetError(null)
+    if (resetPassword.length < MIN_PASSWORD_LEN) {
+      setResetError(`گذرواژه باید حداقل ${MIN_PASSWORD_LEN} کاراکتر باشد.`)
+      return
+    }
+    if (resetPassword !== resetConfirm) {
+      setResetError('گذرواژه و تکرار آن یکسان نیستند.')
+      return
+    }
+    setResetSubmitting(true)
     try {
-      await updateUser(user.id, { password: next })
-      showToast(`گذرواژهٔ ${user.username} بازنشانی شد.`, 'success')
+      await updateUser(resetTarget.id, { password: resetPassword })
+      showToast(`گذرواژهٔ ${resetTarget.username} بازنشانی شد.`, 'success')
+      setResetTarget(null)
+      setResetPassword('')
+      setResetConfirm('')
     } catch (err) {
-      showToast(apiErrorMessage(err), 'error')
+      setResetError(apiErrorMessage(err))
+    } finally {
+      setResetSubmitting(false)
     }
   }
 
@@ -129,7 +175,7 @@ export function Users() {
           حساب ورود به سامانه. نقش «کارمند» حتماً باید به یک ردیف در فهرست کارکنان وصل شود تا بتواند
           خسارت ثبت کند. کارکنان بدون حساب (مثلاً از همگام‌سازی HR) فقط توسط ادمین مدیریت می‌شوند.
           مدیر سامانه فقط از طریق seed یا <span className="dir-ltr font-mono text-xs">make create-admin</span>{' '}
-          ساخته می‌شود.
+          ساخته می‌شود و نمی‌توان او را غیرفعال یا تغییر نقش داد.
         </p>
       </div>
 
@@ -154,6 +200,7 @@ export function Users() {
               onChange={(e) => setPassword(e.target.value)}
               className={inputClass}
               autoComplete="new-password"
+              minLength={MIN_PASSWORD_LEN}
             />
           </Field>
           <Field label="نقش">
@@ -270,16 +317,18 @@ export function Users() {
                     </td>
                     <td className="px-5 py-3 text-end">
                       <div className="flex justify-end gap-2">
+                        {user.role !== 'admin' && (
+                          <button
+                            type="button"
+                            onClick={() => handleToggleActive(user)}
+                            className="rounded-md border border-slate-200 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
+                          >
+                            {user.is_active ? 'غیرفعال کردن' : 'فعال کردن'}
+                          </button>
+                        )}
                         <button
                           type="button"
-                          onClick={() => handleToggleActive(user)}
-                          className="rounded-md border border-slate-200 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
-                        >
-                          {user.is_active ? 'غیرفعال کردن' : 'فعال کردن'}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleResetPassword(user)}
+                          onClick={() => openResetPassword(user)}
                           className="rounded-md border border-slate-200 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
                         >
                           بازنشانی گذرواژه
@@ -294,6 +343,74 @@ export function Users() {
           </div>
         )}
       </Card>
+
+      {resetTarget && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="reset-password-title"
+          onClick={closeResetPassword}
+        >
+          <div
+            className="w-full max-w-md rounded-xl border border-slate-200 bg-white p-5 shadow-lg dark:border-slate-700 dark:bg-slate-900"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 id="reset-password-title" className="text-base font-semibold text-slate-900 dark:text-slate-50">
+              بازنشانی گذرواژه
+            </h2>
+            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+              گذرواژهٔ جدید برای{' '}
+              <span className="font-medium text-slate-700 dark:text-slate-200">{resetTarget.username}</span>
+              {' '}({resetTarget.full_name})
+            </p>
+            <form onSubmit={handleResetPassword} className="mt-4 space-y-3">
+              {resetError && <ErrorBanner message={resetError} />}
+              <Field label="گذرواژهٔ جدید">
+                <input
+                  type="password"
+                  value={resetPassword}
+                  onChange={(e) => setResetPassword(e.target.value)}
+                  className={inputClass}
+                  autoComplete="new-password"
+                  autoFocus
+                  minLength={MIN_PASSWORD_LEN}
+                  required
+                />
+              </Field>
+              <Field label="تکرار گذرواژه">
+                <input
+                  type="password"
+                  value={resetConfirm}
+                  onChange={(e) => setResetConfirm(e.target.value)}
+                  className={inputClass}
+                  autoComplete="new-password"
+                  minLength={MIN_PASSWORD_LEN}
+                  required
+                />
+              </Field>
+              <p className="text-xs text-slate-500 dark:text-slate-400">حداقل {MIN_PASSWORD_LEN} کاراکتر.</p>
+              <div className="flex justify-end gap-2 pt-1">
+                <button
+                  type="button"
+                  onClick={closeResetPassword}
+                  disabled={resetSubmitting}
+                  className="rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-60 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
+                >
+                  انصراف
+                </button>
+                <button
+                  type="submit"
+                  disabled={resetSubmitting}
+                  className="rounded-lg bg-brand-600 px-3 py-2 text-sm font-semibold text-white hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {resetSubmitting ? 'در حال ذخیره…' : 'ذخیرهٔ گذرواژه'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

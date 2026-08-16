@@ -52,6 +52,59 @@ func TestUpdateRejectsDemoteAdmin(t *testing.T) {
 	require.ErrorIs(t, err, users.ErrAdminDemoteForbidden)
 }
 
+func TestUpdateResetsPassword(t *testing.T) {
+	_, svcs := apptest.Open(t)
+	u, err := svcs.Users.Create(context.Background(), users.CreateInput{
+		Username: "pw_reset_me",
+		Password: "Reviewer1!",
+		FullName: "Reset Target",
+		Role:     domain.RoleReviewer,
+	})
+	require.NoError(t, err)
+
+	next := "NewPass99!"
+	_, err = svcs.Users.Update(context.Background(), u.ID, users.UpdateInput{Password: &next})
+	require.NoError(t, err)
+
+	_, _, err = svcs.Users.Login(context.Background(), "pw_reset_me", "Reviewer1!")
+	require.ErrorIs(t, err, users.ErrBadCredentials)
+
+	_, token, err := svcs.Users.Login(context.Background(), "pw_reset_me", next)
+	require.NoError(t, err)
+	require.NotEmpty(t, token)
+}
+
+func TestUpdateRejectsShortPassword(t *testing.T) {
+	_, svcs := apptest.Open(t)
+	u, err := svcs.Users.Create(context.Background(), users.CreateInput{
+		Username: "short_pw",
+		Password: "Reviewer1!",
+		FullName: "Short",
+		Role:     domain.RoleReviewer,
+	})
+	require.NoError(t, err)
+
+	short := "abc"
+	_, err = svcs.Users.Update(context.Background(), u.ID, users.UpdateInput{Password: &short})
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "password must be at least")
+}
+
+func TestUpdateRejectsDeactivateAdmin(t *testing.T) {
+	_, svcs := apptest.Open(t)
+	admin, created, err := svcs.Users.EnsureAdmin(context.Background(), users.CreateInput{
+		Username: "admin",
+		Password: "Admin123!",
+		FullName: "مدیر سامانه",
+	})
+	require.NoError(t, err)
+	require.False(t, created)
+
+	inactive := false
+	_, err = svcs.Users.Update(context.Background(), admin.ID, users.UpdateInput{IsActive: &inactive})
+	require.ErrorIs(t, err, users.ErrAdminDeactivateForbidden)
+}
+
 func TestCreateEmployeeRequiresLink(t *testing.T) {
 	_, svcs := apptest.Open(t)
 	_, err := svcs.Users.Create(context.Background(), users.CreateInput{

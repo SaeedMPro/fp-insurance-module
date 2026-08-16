@@ -15,9 +15,12 @@ var (
 	ErrBadCredentials = domain.Unauthorizedf("invalid username or password")
 
 	// Bootstrap admin is seed / make create-admin only; API Create/Update cannot touch it.
-	ErrAdminCreateForbidden  = domain.Forbiddenf("admin accounts cannot be created via the API; use seed or make create-admin")
-	ErrAdminPromoteForbidden = domain.Forbiddenf("cannot assign the admin role via the API")
-	ErrAdminDemoteForbidden  = domain.Forbiddenf("the admin role cannot be changed via the API")
+	ErrAdminCreateForbidden     = domain.Forbiddenf("admin accounts cannot be created via the API; use seed or make create-admin")
+	ErrAdminPromoteForbidden    = domain.Forbiddenf("cannot assign the admin role via the API")
+	ErrAdminDemoteForbidden     = domain.Forbiddenf("the admin role cannot be changed via the API")
+	ErrAdminDeactivateForbidden = domain.Forbiddenf("the admin account cannot be deactivated via the API")
+
+	minPasswordLen = 8
 )
 
 type Repo interface {
@@ -94,9 +97,19 @@ type CreateInput struct {
 	EmployeeID *uuid.UUID
 }
 
+func validatePassword(password string) error {
+	if len(password) < minPasswordLen {
+		return domain.Validationf("password must be at least %d characters", minPasswordLen)
+	}
+	return nil
+}
+
 func (s *Service) Create(ctx context.Context, in CreateInput) (domain.User, error) {
 	if in.Username == "" || in.Password == "" || in.FullName == "" {
 		return domain.User{}, domain.Validationf("username, password and full name are required")
+	}
+	if err := validatePassword(in.Password); err != nil {
+		return domain.User{}, err
 	}
 	if in.Role == domain.RoleAdmin {
 		return domain.User{}, ErrAdminCreateForbidden
@@ -159,9 +172,15 @@ func (s *Service) Update(ctx context.Context, id uuid.UUID, in UpdateInput) (dom
 		u.EmployeeID = nil
 	}
 	if in.IsActive != nil {
+		if u.Role == domain.RoleAdmin && !*in.IsActive {
+			return domain.User{}, ErrAdminDeactivateForbidden
+		}
 		u.IsActive = *in.IsActive
 	}
 	if in.Password != nil && *in.Password != "" {
+		if err := validatePassword(*in.Password); err != nil {
+			return domain.User{}, err
+		}
 		hash, err := auth.HashPassword(*in.Password)
 		if err != nil {
 			return domain.User{}, domain.Internalf(err, "could not hash password")
