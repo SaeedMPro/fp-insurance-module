@@ -21,3 +21,6 @@ dist/
 .DS_Store
 
 *__pycache__/
+
+# e2e run output (screenshots + the generated sample upload)
+e2e/artifacts/

@@ -1,6 +1,6 @@
 COMPOSE := docker compose
 
-.PHONY: up down logs seed seed-attachments create-admin test test-integration lint build-frontend build-backend
+.PHONY: up down logs seed seed-attachments create-admin test test-integration lint e2e build-frontend build-backend
 
 up: ## Build images (if needed) and start postgres + backend + frontend
 	$(COMPOSE) up -d --build
@@ -71,10 +71,12 @@ lint: ## Run golangci-lint (backend) and oxlint (frontend)
 	cd backend && golangci-lint run
 	cd frontend && npm run lint
 
-# NOTE: the browser end-to-end suite that used to live in e2e/ was removed in
-# the repository restructure, so there is no `e2e` target here any more. The
-# behaviour it covered is exercised by the Go integration tests (which run the
-# real services against a real database) — see `make test-integration`.
+e2e: ## Run the browser end-to-end suite against a running stack (make up + make seed first)
+	# Drives the real Persian UI headlessly through the full claim lifecycle,
+	# a config-driven rule change, the return-for-docs + document-upload loop,
+	# RBAC checks, and the audit trail.
+	# Override E2E_BASE_URL / E2E_API_URL / CHROME_PATH if not on the defaults.
+	cd e2e && npm install --silent && node e2e.mjs
 
 build-frontend: ## Build only the frontend image
 	$(COMPOSE) build frontend
