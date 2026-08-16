@@ -228,6 +228,41 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/claims/{id}/attachments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Documents attached to a claim. Visible to anyone who may read the claim. */
+        get: operations["listClaimAttachments"];
+        put?: never;
+        /** @description Upload one supporting document. Permitted only for the claim's owner (or an admin) and only while the claim is in draft or has been returned for documents — evidence is frozen once a reviewer takes the claim. Accepted types are sniffed from the content, not the declared type: application/pdf, image/jpeg, image/png, image/webp. Maximum 5 MiB. */
+        post: operations["uploadClaimAttachment"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/claims/{id}/attachments/{attachmentID}/download": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Download the stored bytes. Always served as an attachment with X-Content-Type-Options: nosniff, so an uploaded document can never be rendered inline in the browser. */
+        get: operations["downloadClaimAttachment"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/claims/{id}/submit": {
         parameters: {
             query?: never;
@@ -729,6 +764,19 @@ export interface components {
             month: string;
             total_paid: number;
             claim_count: number;
+        };
+        /** @description A supporting document uploaded against a claim. The on-disk storage key is intentionally not exposed; use download_url to fetch the bytes. */
+        Attachment: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            claim_id: string;
+            /** @description Original file name, sanitised to a plain name. */
+            file_name: string;
+            /** Format: date-time */
+            uploaded_at: string;
+            /** @description Path of the download endpoint for this attachment. */
+            download_url: string;
         };
         ClaimList: {
             items: components["schemas"]["Claim"][];
@@ -1397,6 +1445,83 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AuditLog"][];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    listClaimAttachments: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["ClaimID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Attachments, oldest first. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Attachment"][];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    uploadClaimAttachment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["ClaimID"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": {
+                    /** Format: binary */
+                    file: string;
+                };
+            };
+        };
+        responses: {
+            /** @description The stored attachment. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Attachment"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    downloadClaimAttachment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["ClaimID"];
+                attachmentID: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The file. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/octet-stream": string;
                 };
             };
             default: components["responses"]["Error"];

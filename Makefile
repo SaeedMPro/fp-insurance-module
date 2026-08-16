@@ -1,6 +1,6 @@
 COMPOSE := docker compose
 
-.PHONY: up down logs seed create-admin test test-integration lint e2e build-frontend build-backend
+.PHONY: up down logs seed seed-attachments create-admin test test-integration lint build-frontend build-backend
 
 up: ## Build images (if needed) and start postgres + backend + frontend
 	$(COMPOSE) up -d --build
@@ -18,6 +18,21 @@ seed: ## Apply backend/db/seed.sql (reference data; run once on empty DB)
 	$(COMPOSE) exec -T postgres \
 	  psql -U insurance -d insurance -v ON_ERROR_STOP=1 \
 	  < backend/db/seed.sql
+	$(MAKE) seed-attachments
+
+# The seeded claim_attachments rows describe documents no upload ever created.
+# SQL cannot write files, so put a small valid PDF behind each one to make the
+# demo's download button work. Real uploads land in the same directory.
+seed-attachments: ## Materialise placeholder files for the seeded attachment rows
+	@$(COMPOSE) exec -T postgres \
+	    psql -U insurance -d insurance -Atc 'SELECT file_path FROM claim_attachments' \
+	  | $(COMPOSE) exec -T backend sh -c 'while read -r key; do \
+	      [ -n "$$key" ] || continue; \
+	      f="$$ATTACHMENTS_DIR/$$key"; \
+	      [ -f "$$f" ] && continue; \
+	      mkdir -p "$$(dirname "$$f")"; \
+	      printf "%%PDF-1.4\n1 0 obj<</Type/Catalog>>endobj\ntrailer<</Root 1 0 R>>\n%%%%EOF\n" > "$$f"; \
+	    done'
 
 create-admin: ## Create the sole admin if missing (defaults: admin / Admin123!)
 	$(COMPOSE) run --rm --no-deps \
@@ -56,11 +71,10 @@ lint: ## Run golangci-lint (backend) and oxlint (frontend)
 	cd backend && golangci-lint run
 	cd frontend && npm run lint
 
-e2e: ## Run the browser end-to-end suite against a running stack (make up + make seed first)
-	# Drives the real Persian UI headlessly through the full claim lifecycle,
-	# a config-driven rule change, RBAC checks, and the audit trail.
-	# Override E2E_BASE_URL / E2E_API_URL / CHROME_PATH if not on the defaults.
-	cd e2e && npm install --silent && node e2e.mjs
+# NOTE: the browser end-to-end suite that used to live in e2e/ was removed in
+# the repository restructure, so there is no `e2e` target here any more. The
+# behaviour it covered is exercised by the Go integration tests (which run the
+# real services against a real database) — see `make test-integration`.
 
 build-frontend: ## Build only the frontend image
 	$(COMPOSE) build frontend

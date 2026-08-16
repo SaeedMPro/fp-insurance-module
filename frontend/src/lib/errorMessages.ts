@@ -45,6 +45,18 @@ const EXACT: Record<string, string> = {
   'employee has no coverage plan assigned':
     'برای این کارمند طرح پوششی تعیین نشده است.',
 
+  // --- attachments -------------------------------------------------------
+  'documents can only be added while the claim is a draft or has been returned for documents':
+    'افزودن مدرک فقط در وضعیت پیش‌نویس یا «بازگشت برای تکمیل مدارک» ممکن است.',
+  'file exceeds the maximum allowed size': 'حجم فایل بیش از حد مجاز است (حداکثر ۵ مگابایت).',
+  'file is empty': 'فایل انتخاب‌شده خالی است.',
+  'unsupported file type': 'نوع فایل پشتیبانی نمی‌شود. فقط PDF، JPG، PNG و WebP مجاز است.',
+  'attachment file not found': 'فایل این مدرک روی سرور یافت نشد.',
+  'no file was sent in the \'file\' field': 'فایلی ارسال نشده است.',
+  'upload is not a valid multipart form or exceeds the size limit':
+    'بارگذاری نامعتبر است یا حجم فایل از حد مجاز بیشتر است.',
+  'attachment storage is not configured': 'ذخیره‌سازی مدارک روی سرور پیکربندی نشده است.',
+
   // --- validation --------------------------------------------------------
   'invalid request body': 'داده‌های ارسالی نامعتبر است.',
   'invalid id': 'شناسهٔ نامعتبر.',
@@ -91,6 +103,7 @@ const ENTITIES: Record<string, string> = {
   user: 'کاربر',
   plan: 'طرح پوشش',
   'service type': 'نوع خدمت',
+  attachment: 'مدرک',
   'active coverage rule': 'قانون پوشش فعال',
 }
 

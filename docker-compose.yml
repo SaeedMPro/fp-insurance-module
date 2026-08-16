@@ -34,6 +34,11 @@ services:
       JWT_SECRET: ${JWT_SECRET:-change-me-in-prod}
       JWT_TTL: 8h
       DB_INIT_PATH: /app/db/init.sql
+      ATTACHMENTS_DIR: /app/data/attachments
+    volumes:
+      # Uploaded claim documents are on disk, not in the database, so they need
+      # their own durable volume.
+      - attachments:/app/data/attachments
     ports:
       - "8080:8080"
 
@@ -51,3 +56,4 @@ services:
 
 volumes:
   pgdata:
+  attachments:

@@ -11,6 +11,7 @@ import (
 
 	"insurance-module/internal/app"
 	"insurance-module/internal/domain"
+	"insurance-module/internal/platform/filestore"
 	"insurance-module/internal/storage/postgres"
 	transporthttp "insurance-module/internal/transport/http"
 )
@@ -30,10 +31,16 @@ func Open(t testing.TB) (*postgres.Store, transporthttp.Services) {
 	store, rollback := root.BeginTx()
 	t.Cleanup(rollback)
 
+	files, err := filestore.New(t.TempDir())
+	if err != nil {
+		t.Fatalf("attachment store: %v", err)
+	}
+
 	services := app.Build(store, app.Options{
 		JWTSecret: "test-secret-not-used-for-http",
 		JWTTTL:    time.Hour,
 		Clock:     domain.SystemClock{},
+		Files:     files,
 	})
 	return store, services
 }

@@ -23,6 +23,10 @@ type Config struct {
 	JWTTTL      time.Duration
 	DBInitPath  string
 	CORSOrigins []string
+	// AttachmentsDir is where uploaded claim documents are stored. In Docker
+	// this should be a mounted volume; otherwise uploads vanish when the
+	// container is replaced.
+	AttachmentsDir string
 }
 
 // IsProduction reports whether the process runs with APP_ENV=production.
@@ -31,13 +35,14 @@ func (c Config) IsProduction() bool { return c.Env == "production" }
 // Load reads configuration from the environment and validates it.
 func Load() (Config, error) {
 	cfg := Config{
-		Env:         getEnv("APP_ENV", "development"),
-		HTTPPort:    getEnv("HTTP_PORT", "8080"),
-		DatabaseURL: getEnv("DATABASE_URL", "postgres://insurance:insurance@localhost:5432/insurance?sslmode=disable"),
-		JWTSecret:   getEnv("JWT_SECRET", insecureDefaultJWTSecret),
-		JWTTTL:      getDuration("JWT_TTL", 8*time.Hour),
-		DBInitPath:  getEnv("DB_INIT_PATH", "db/init.sql"),
-		CORSOrigins: []string{getEnv("CORS_ORIGIN", "http://localhost:5173")},
+		Env:            getEnv("APP_ENV", "development"),
+		HTTPPort:       getEnv("HTTP_PORT", "8080"),
+		DatabaseURL:    getEnv("DATABASE_URL", "postgres://insurance:insurance@localhost:5432/insurance?sslmode=disable"),
+		JWTSecret:      getEnv("JWT_SECRET", insecureDefaultJWTSecret),
+		JWTTTL:         getDuration("JWT_TTL", 8*time.Hour),
+		DBInitPath:     getEnv("DB_INIT_PATH", "db/init.sql"),
+		AttachmentsDir: getEnv("ATTACHMENTS_DIR", "data/attachments"),
+		CORSOrigins:    []string{getEnv("CORS_ORIGIN", "http://localhost:5173")},
 	}
 	if err := cfg.validate(); err != nil {
 		return Config{}, err

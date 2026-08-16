@@ -23,6 +23,7 @@ import { ErrorBanner } from '../../components/ErrorBanner'
 import { Spinner } from '../../components/Spinner'
 import { StatusBadge } from '../../components/StatusBadge'
 import { JsonViewer } from '../../components/JsonViewer'
+import { ClaimAttachments } from './ClaimAttachments'
 import { BENEFICIARY_LABELS, auditActionLabel, formatDate, formatDateTime, formatMoney, formatNumber } from '../../lib/format'
 
 type ReasonAction = 'reject' | 'return-for-docs'
@@ -114,6 +115,11 @@ export function ClaimDetail() {
   const isOwner = user?.role === 'employee' && user.employee_id === claim.employee_id
   const isReviewerLike = user?.role === 'reviewer' || user?.role === 'admin'
   const serviceType = serviceTypeById.get(claim.service_type_id)
+  // Mirrors the server rule: the claim's owner (or an admin) may add documents
+  // while the claim is a draft or was returned for missing paperwork.
+  const canUploadDocs =
+    (isOwner || user?.role === 'admin') &&
+    (claim.status === 'draft' || claim.status === 'returned_for_docs')
 
   return (
     <div className="max-w-3xl space-y-6">
@@ -176,6 +182,15 @@ export function ClaimDetail() {
           </div>
         )}
       </Card>
+
+      <ClaimAttachments
+        claimId={claim.id}
+        canUpload={canUploadDocs}
+        onUploaded={() => {
+          // The upload is audited, so the history needs refreshing too.
+          getClaimHistory(claim.id).then(setHistory).catch(() => {})
+        }}
+      />
 
       <Card>
         <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-50">عملیات</h2>

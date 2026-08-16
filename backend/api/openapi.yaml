@@ -297,6 +297,23 @@ components:
         total_paid: { type: number }
         claim_count: { type: integer }
 
+    Attachment:
+      type: object
+      description: >
+        A supporting document uploaded against a claim. The on-disk storage key
+        is intentionally not exposed; use download_url to fetch the bytes.
+      required: [id, claim_id, file_name, uploaded_at, download_url]
+      properties:
+        id: { type: string, format: uuid }
+        claim_id: { type: string, format: uuid }
+        file_name:
+          type: string
+          description: Original file name, sanitised to a plain name.
+        uploaded_at: { type: string, format: date-time }
+        download_url:
+          type: string
+          description: Path of the download endpoint for this attachment.
+
     ClaimList:
       type: object
       required: [items, total]
@@ -818,6 +835,69 @@ paths:
               schema:
                 type: array
                 items: { $ref: "#/components/schemas/AuditLog" }
+        default: { $ref: "#/components/responses/Error" }
+
+  /claims/{id}/attachments:
+    get:
+      operationId: listClaimAttachments
+      description: Documents attached to a claim. Visible to anyone who may read the claim.
+      parameters: [{ $ref: "#/components/parameters/ClaimID" }]
+      responses:
+        "200":
+          description: Attachments, oldest first.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Attachment" }
+        default: { $ref: "#/components/responses/Error" }
+    post:
+      operationId: uploadClaimAttachment
+      description: >
+        Upload one supporting document. Permitted only for the claim's owner
+        (or an admin) and only while the claim is in draft or has been returned
+        for documents — evidence is frozen once a reviewer takes the claim.
+        Accepted types are sniffed from the content, not the declared type:
+        application/pdf, image/jpeg, image/png, image/webp. Maximum 5 MiB.
+      parameters: [{ $ref: "#/components/parameters/ClaimID" }]
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file:
+                  type: string
+                  format: binary
+      responses:
+        "201":
+          description: The stored attachment.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Attachment" }
+        default: { $ref: "#/components/responses/Error" }
+
+  /claims/{id}/attachments/{attachmentID}/download:
+    get:
+      operationId: downloadClaimAttachment
+      description: >
+        Download the stored bytes. Always served as an attachment with
+        X-Content-Type-Options: nosniff, so an uploaded document can never be
+        rendered inline in the browser.
+      parameters:
+        - { $ref: "#/components/parameters/ClaimID" }
+        - name: attachmentID
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: The file.
+          content:
+            application/octet-stream:
+              schema: { type: string, format: binary }
         default: { $ref: "#/components/responses/Error" }
 
   /claims/{id}/submit:

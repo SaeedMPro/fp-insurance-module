@@ -200,6 +200,7 @@ export const AUDIT_ACTION_LABELS: Record<string, string> = {
   return_for_docs: 'بازگرداندن برای مدارک',
   mark_paid: 'ثبت پرداخت',
   close: 'بستن',
+  attachment_upload: 'بارگذاری مدرک',
   config_change: 'تغییر پیکربندی',
   login: 'ورود',
 }

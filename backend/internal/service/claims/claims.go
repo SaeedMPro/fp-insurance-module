@@ -55,6 +55,9 @@ type Repo interface {
 	GetUser(ctx context.Context, id uuid.UUID) (domain.User, error)
 	InsertAudit(ctx context.Context, entry *domain.AuditLog) error
 	QueryAudit(ctx context.Context, f domain.AuditFilter) ([]domain.AuditLog, int64, error)
+	ListAttachments(ctx context.Context, claimID uuid.UUID) ([]domain.Attachment, error)
+	GetAttachment(ctx context.Context, id uuid.UUID) (domain.Attachment, error)
+	CreateAttachment(ctx context.Context, a *domain.Attachment) error
 }
 
 // Atomic runs fn inside one storage transaction.
@@ -70,13 +73,14 @@ type Service struct {
 	atomic Atomic
 	pricer Pricer
 	clock  domain.Clock
+	files  FileStore // nil disables attachments (see attachments.go)
 }
 
-func NewService(repo Repo, atomic Atomic, pricer Pricer, clock domain.Clock) *Service {
+func NewService(repo Repo, atomic Atomic, pricer Pricer, clock domain.Clock, files FileStore) *Service {
 	if clock == nil {
 		clock = domain.SystemClock{}
 	}
-	return &Service{repo: repo, atomic: atomic, pricer: pricer, clock: clock}
+	return &Service{repo: repo, atomic: atomic, pricer: pricer, clock: clock, files: files}
 }
 
 // CreateInput describes a new draft claim.

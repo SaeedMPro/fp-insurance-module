@@ -47,6 +47,7 @@ cd "$ROOT/backend"
 DATABASE_URL="$DSN" \
 JWT_SECRET="${JWT_SECRET:-dev-secret-not-for-production}" \
 DB_INIT_PATH="db/init.sql" \
+ATTACHMENTS_DIR="$RUN_DIR/attachments" \
 HTTP_PORT="$API_PORT" \
 CORS_ORIGIN="http://localhost:$WEB_PORT" \
   nohup go run ./cmd/api >"$RUN_DIR/api.log" 2>&1 &
@@ -69,6 +70,19 @@ if [[ "$(psql "$DSN" -Atc 'SELECT COUNT(*) FROM service_types')" == "0" ]]; then
 else
   say "reference seed already present; skipping"
 fi
+
+# The seeded attachment rows describe files that no upload ever created. Write a
+# small valid PDF for each missing one so the demo's download button works;
+# real uploads land in the same directory alongside them.
+say "materialising demo attachment files"
+ATT_DIR="$RUN_DIR/attachments"
+psql "$DSN" -Atc 'SELECT file_path FROM claim_attachments' | while read -r key; do
+  [ -n "$key" ] || continue
+  target="$ATT_DIR/$key"
+  [ -f "$target" ] && continue
+  mkdir -p "$(dirname "$target")"
+  printf '%%PDF-1.4\n1 0 obj<</Type/Catalog>>endobj\ntrailer<</Root 1 0 R>>\n%%%%EOF\n' >"$target"
+done
 
 # ---------------------------------------------------------------- frontend ---
 say "starting Vite dev server on :$WEB_PORT"

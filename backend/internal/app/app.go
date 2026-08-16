@@ -24,6 +24,9 @@ type Options struct {
 	JWTSecret string
 	JWTTTL    time.Duration
 	Clock     domain.Clock // nil → system clock
+	// Files backs claim attachments; nil leaves the endpoints reporting that
+	// attachment storage is not configured rather than failing obscurely.
+	Files claims.FileStore
 }
 
 // Build wires every service over the given store.
@@ -41,7 +44,7 @@ func Build(store *postgres.Store, opts Options) transporthttp.Services {
 	claimsSvc := claims.NewService(store,
 		func(ctx context.Context, fn func(claims.Repo) error) error {
 			return store.Atomic(ctx, func(tx *postgres.Store) error { return fn(tx) })
-		}, coverageSvc, clock)
+		}, coverageSvc, clock, opts.Files)
 
 	integrationSvc := integration.NewService(store,
 		func(ctx context.Context, fn func(integration.Repo) error) error {

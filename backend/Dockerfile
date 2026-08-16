@@ -25,6 +25,13 @@ WORKDIR /app
 COPY --from=build /app/api /app/createadmin ./
 COPY --from=build /src/db ./db
 
+# Uploaded claim documents live here. Created up front and owned by the app
+# user because the process runs unprivileged; mount a volume over it in
+# compose so uploads survive the container being replaced.
+RUN mkdir -p /app/data/attachments && chown -R app:app /app/data
+ENV ATTACHMENTS_DIR=/app/data/attachments
+VOLUME ["/app/data/attachments"]
+
 USER app
 
 EXPOSE 8080

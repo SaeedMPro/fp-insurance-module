@@ -133,6 +133,9 @@ func NewRouter(cfg Config, svcs Services) http.Handler {
 			r.Get("/claims", s.handleListClaims)
 			r.Get("/claims/{id}", s.handleGetClaim)
 			r.Get("/claims/{id}/history", s.handleClaimHistory)
+			r.Get("/claims/{id}/attachments", s.handleListAttachments)
+			r.Post("/claims/{id}/attachments", s.handleUploadAttachment)
+			r.Get("/claims/{id}/attachments/{attachmentID}/download", s.handleDownloadAttachment)
 			r.Post("/claims/{id}/submit", s.transition(func(r *http.Request, actor domain.Actor, id uuid.UUID) (domain.Claim, error) {
 				return s.claims.Submit(r.Context(), actor, id)
 			}))

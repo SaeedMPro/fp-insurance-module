@@ -730,19 +730,25 @@ WHERE e.personnel_no = 'P-1001'
   AND c.receipt_date = DATE '2025-11-10';
 
 -- ---------------------------------------------------------------------------
--- 8. Claim attachments (schema present; metadata only — no real files on disk)
+-- 8. Claim attachments (metadata rows; the blobs are written separately)
 -- ---------------------------------------------------------------------------
+-- file_path is a key relative to ATTACHMENTS_DIR, in the same
+-- "<claim id>/<file>" layout the upload endpoint writes. SQL cannot create the
+-- files themselves, so `make seed-attachments` (Docker) and scripts/dev-up.sh
+-- (host-native) materialise a small placeholder PDF for each row, and the
+-- demo's download button works. Without them the API answers "attachment file
+-- not found" — a clean 404, not a failure.
 INSERT INTO claim_attachments (claim_id, file_name, file_path, uploaded_at)
 SELECT c.id, 'invoice-pharmacy-jabari.pdf',
-       '/demo/attachments/P-1001/invoice-pharmacy-jabari.pdf',
+       c.id::text || '/invoice-pharmacy-jabari.pdf',
        TIMESTAMPTZ '2026-05-20 19:05:00+03:30'
 FROM claims c
 JOIN employees e ON e.id = c.employee_id
 WHERE e.personnel_no = 'P-1001' AND c.status = 'returned_for_docs';
 
 INSERT INTO claim_attachments (claim_id, file_name, file_path, uploaded_at)
-SELECT c.id, 'dental-receipt-arya.jpg',
-       '/demo/attachments/P-1001/dental-receipt-arya.jpg',
+SELECT c.id, 'dental-receipt-arya.pdf',
+       c.id::text || '/dental-receipt-arya.pdf',
        TIMESTAMPTZ '2026-06-15 18:10:00+03:30'
 FROM claims c
 JOIN employees e ON e.id = c.employee_id

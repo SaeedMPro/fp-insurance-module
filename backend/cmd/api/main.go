@@ -18,6 +18,7 @@ import (
 	"insurance-module/internal/app"
 	"insurance-module/internal/platform/config"
 	"insurance-module/internal/platform/database"
+	"insurance-module/internal/platform/filestore"
 	"insurance-module/internal/platform/logging"
 	"insurance-module/internal/storage/postgres"
 	transporthttp "insurance-module/internal/transport/http"
@@ -43,9 +44,17 @@ func main() {
 		os.Exit(1)
 	}
 
+	files, err := filestore.New(cfg.AttachmentsDir)
+	if err != nil {
+		logger.Error("attachments dir unavailable", "error", err, "dir", cfg.AttachmentsDir)
+		os.Exit(1)
+	}
+	logger.Info("attachments dir ready", "dir", files.Root())
+
 	services := app.Build(store, app.Options{
 		JWTSecret: cfg.JWTSecret,
 		JWTTTL:    cfg.JWTTTL,
+		Files:     files,
 	})
 
 	router := transporthttp.NewRouter(transporthttp.Config{
