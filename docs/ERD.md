@@ -196,11 +196,13 @@ used in `coverage_rules.eligible_relations`.
 
 **`users`** — login accounts, one per interactive actor. `role` is one of
 `admin`, `reviewer`, `employee`, `auditor` (CHECK-constrained,
-`internal/models.Role`). `employee_id` is nullable and links an
+`internal/domain.Role`). `employee_id` is nullable and links an
 `employee`-role account to its `employees` row (only employee-role users
-are expected to have one set, though the column itself does not enforce
-that, nor a uniqueness constraint). `password_hash` is bcrypt and is never
-serialized to JSON (`json:"-"` in `internal/models.User`).
+are expected to have one set — the users service refuses to create or
+update an `employee`-role account without one, though the column itself
+does not enforce that, nor a uniqueness constraint). `password_hash` is
+bcrypt and never leaves the storage layer: the transport DTO for a user
+simply has no field for it.
 
 **`claims`** — the central transactional entity. Beyond the fields listed
 above, it also carries `submitted_at`, `reviewed_at`, `paid_at`,
@@ -209,8 +211,8 @@ above, it also carries `submitted_at`, `reviewed_at`, `paid_at`,
 `under_review`, `returned_for_docs`, `approved`, `rejected`,
 `payment_calculated`, `paid`, `closed`. Of these,
 **`payment_calculated` is defined in the schema and in
-`internal/models.ClaimStatus` but is never set by the workflow engine's
-transition table** (`internal/workflow/workflow.go`) — the implemented
+`internal/domain.ClaimStatus` but is never set by the claim service's
+transition table** (`internal/service/claims/claims.go`) — the implemented
 lifecycle goes `approved -> paid` directly, since `Approve` itself computes
 `payable_amount`. `payment_calculated` is referenced only as one of the
 "this counts as committed spend" statuses in the rule engine's annual-cap
@@ -218,19 +220,24 @@ sum and in the reports service, effectively reserved for a possible future
 explicit pricing step that is not currently reachable through the API.
 
 **`claim_attachments`** — supporting documents for a claim (`ON DELETE
-CASCADE` from `claims`); referenced in the schema but not yet exposed by
-any endpoint in `docs/API-CONTRACT.md`.
+CASCADE` from `claims`), written by `POST /claims/{id}/attachments`.
+`file_name` is the original name as typed by the uploader and is only ever
+displayed; `file_path` is a storage key relative to `ATTACHMENTS_DIR` whose
+filename is a server-generated UUID, so a hostile name cannot become a path.
+The rows are metadata only — the bytes live on disk (see
+`internal/platform/filestore`), and the row and its audit entry commit
+together after the blob is written.
 
 **`payments`** — one simulated disbursement per claim, created by
-`MarkPaid` (`workflow.go`). `claim_id` is `UNIQUE`, enforcing at most one
+`MarkPaid` (`internal/service/claims/transitions.go`). `claim_id` is `UNIQUE`, enforcing at most one
 payment per claim. `payment_reference` is a generated `SIM-<8 hex chars>`
 string; `status` is `simulated` or `completed` (only `simulated` is ever
 written by the current code — a real payment gateway is explicitly out of
 scope per the code comment on `MarkPaid`).
 
-**`audit_logs`** — the generic audit trail described in
-`internal/audit/audit.go`: every mutating action (login, claim
-transitions, coverage-rule config changes) writes one row here with
+**`audit_logs`** — the generic audit trail served by
+`internal/service/audit`: every mutating action (login, claim transitions,
+document uploads, coverage-rule config changes) writes one row here with
 `before_data`/`after_data`/`metadata` as `jsonb` snapshots, an actor
 (`actor_user_id` + denormalized `actor_username`, so the actor's name
 survives even if the user row is later changed or deactivated), and
@@ -252,17 +259,21 @@ No FK relationships to any other table.
    updates `coverage_percent`, `per_claim_cap`, `annual_cap`,
    `waiting_period_days`, or `eligible_relations` on an existing row.
 2. **The one field that is ever mutated in place is `effective_to` on the
-   row being superseded**, and only to close it off. The handler
-   (`internal/api/reference_handlers.go`, `createCoverageRule`) looks up
+   row being superseded**, and only to close it off.
+   `PublishRuleVersion` (`internal/service/coverage/publish.go`) looks up
    the currently-open row for the same `(plan_id, service_type_id)`
    (`effective_to IS NULL`) inside a transaction, sets its
    `effective_to = new_rule.effective_from - 1 day`, then inserts the new
-   row with the requested `effective_from`. Both writes commit atomically
-   with a single `audit_logs` entry
+   row with the requested `effective_from`. A same-day or backdated
+   republish would make that close date precede the row's own start and
+   violate the `effective_to >= effective_from` CHECK, so it is clamped to
+   the old rule's start date; on that one overlapping day the engine picks
+   the newer version via the `created_at` tiebreak. Both writes commit
+   atomically with a single `audit_logs` entry
    (`entity_type="coverage_rule"`, `action="config_change"`,
    `before={"previous_rule": ...}`, `after={"new_rule": ...}`).
 3. **"Active" is a date-range lookup, not a boolean flag.** `activeRule()`
-   in `internal/ruleengine/ruleengine.go` selects the row where
+   in `internal/service/coverage/coverage.go` selects the row where
    `effective_from <= onDate AND (effective_to IS NULL OR effective_to >=
    onDate)`, ordered by `effective_from DESC`, limit 1. This means a claim
    is always priced against whichever rule version was in force on its own

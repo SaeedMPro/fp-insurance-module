@@ -170,6 +170,38 @@ Auth: reviewer, admin. rejected|paid -> closed. Response 200: `Claim`.
 ### GET /claims/{id}/history
 Auth: owner, reviewer, admin, auditor. Response 200: `AuditLog[]` for this claim, newest first.
 
+### GET /claims/{id}/attachments
+Auth: owner, reviewer, admin, auditor (same read policy as the claim itself).
+Response 200: `Attachment[]`, oldest first. `Attachment` carries `id`, `claim_id`,
+`file_name` (the uploader's original name, for display only), `uploaded_at`, and
+`download_url`. The storage key is deliberately never exposed.
+
+### POST /claims/{id}/attachments
+Auth: the claim's owner, or admin. `multipart/form-data` with a single `file` part.
+
+Accepted only while the claim is in `draft` or `returned_for_docs` — once a claim
+is back in the review queue its documents are frozen, so the evidence a reviewer
+decided on cannot change underneath them. Any other status is 409
+(`ErrAttachmentsFrozen`).
+
+The file type is determined by **sniffing the content**, not by the declared
+`Content-Type` or the extension: `application/pdf`, `image/jpeg`, `image/png`,
+`image/webp`. Maximum 5 MiB.
+
+Response 201: `Attachment`. Errors: 400 for an empty file
+(`ErrAttachmentEmpty`), an oversized file (`ErrAttachmentTooLarge`), or an
+unsupported type (`ErrAttachmentTypeNotOK`); 403 for anyone but the owner or an
+admin; 409 if the claim's status does not accept documents.
+
+Each successful upload writes an `attachment_upload` audit entry naming the
+actor and the file, in the same transaction as the metadata row.
+
+### GET /claims/{id}/attachments/{attachmentID}/download
+Auth: same read policy as the claim. Responds with the file bytes,
+`Content-Disposition: attachment` (RFC 5987-encoded so Persian filenames survive)
+and `X-Content-Type-Options: nosniff`. An attachment id belonging to a different
+claim is 404, not a cross-claim read.
+
 Error codes used by all the above transition endpoints: 409 Conflict for an
 invalid transition (`ErrInvalidTransition`), 403 Forbidden for a disallowed actor
 role (`ErrForbidden`), 400 for a missing required reason (`ErrReasonRequired`), 422

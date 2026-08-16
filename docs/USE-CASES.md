@@ -19,8 +19,9 @@ Actors:
 - **Parent system** — an external HR/master-data system authenticating with an API key.
 
 The four interactive roles are enforced by JWT + role middleware
-(`backend/internal/api/middleware`); the parent system authenticates with a separate
-`X-API-Key` scheme.
+(`backend/internal/transport/http/middleware.go`), with per-record ownership
+checks in the services themselves; the parent system authenticates with a
+separate `X-API-Key` scheme.
 
 ---
 
@@ -89,14 +90,17 @@ The four interactive roles are enforced by JWT + role middleware
 - **Return for documents:** from `under_review`, `POST /claims/{id}/return-for-docs`
   with a required reason moves the claim to `returned_for_docs`. The employee then
   calls `POST /claims/{id}/resubmit` (`returned_for_docs -> submitted`) after
-  attaching the missing documents, and the cycle repeats.
+  attaching the missing documents, and the cycle repeats. Documents are
+  uploaded with `POST /claims/{id}/attachments`, which the service accepts
+  only while the claim is a `draft` or has been `returned_for_docs` — once it
+  is back in the queue the evidence the reviewer decided on is frozen.
 
 **Error flows:**
 - **Wrong order (e.g. approve before start-review):** `409 Conflict`
   (`ErrInvalidTransition`) — the state machine only permits the transitions in
-  `backend/internal/workflow/workflow.go`.
+  `backend/internal/service/claims/claims.go`.
 - **Employee attempts a reviewer action:** `403 Forbidden` (`ErrForbidden`), enforced
-  both by route middleware and inside the workflow engine.
+  both by route middleware and inside the claim service.
 - **Pricing fails at approval:** `422` with the underlying rule-engine reason
   (see UC-3 error flows). The claim stays `under_review`.
 

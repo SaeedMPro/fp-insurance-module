@@ -50,7 +50,7 @@ and integration key `dev-integration-key` (`X-API-Key`).
 ```
 backend/     Go API, OpenAPI, db/init.sql + db/seed.sql
 frontend/    Persian RTL SPA
-docs/        architecture, ERD, API contract, use cases
+docs/        architecture, ERD, API contract, use cases, ADRs
 docker-compose.yml
 Makefile
 ```
@@ -61,4 +61,5 @@ Makefile
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
 - [docs/ERD.md](docs/ERD.md)
 - [docs/USE-CASES.md](docs/USE-CASES.md)
+- [docs/adr/](docs/adr/) — why the structure is the way it is
 - Spec: [backend/api/openapi.yaml](backend/api/openapi.yaml)
