@@ -12,7 +12,12 @@ import type * as Preset from '@docusaurus/preset-classic'
 const config: Config = {
   title: 'Supplementary Insurance Module',
   tagline: 'Employee top-up health insurance, where benefit policy is data rather than code',
-  favicon: 'img/favicon.ico',
+  favicon: 'img/favicon.svg',
+  // The .ico is generated from the same SVG source and linked for clients that
+  // ignore SVG favicons.
+  headTags: [
+    { tagName: 'link', attributes: { rel: 'alternate icon', type: 'image/x-icon', href: '/fp-insurance-module/img/favicon.ico' } },
+  ],
 
   // Lowercase: GitHub serves Pages from the lowercased account name
   // (saeedmpro.github.io), and this value ends up in canonical tags, og:url and
@@ -93,6 +98,9 @@ const config: Config = {
   themes: ['@docusaurus/theme-mermaid', 'docusaurus-theme-openapi-docs'],
 
   themeConfig: {
+    // Card shown when the site is shared. Hand-authored SVG/HTML, rasterised
+    // locally — see static/img/social-card.png.
+    image: 'img/social-card.png',
     colorMode: { defaultMode: 'light', respectPrefersColorScheme: true },
     navbar: {
       title: 'Insurance Module',

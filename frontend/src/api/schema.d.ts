@@ -13,6 +13,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
+        /** Log in and receive a token */
         post: operations["login"];
         delete?: never;
         options?: never;
@@ -27,6 +28,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
+        /** Identify the current user */
         get: operations["me"];
         put?: never;
         post?: never;
@@ -43,9 +45,13 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
+        /** List claimable service types */
         get: operations["listServiceTypes"];
         put?: never;
-        /** @description Admin only. Adds a claimable service category to the catalogue. */
+        /**
+         * Add a service type
+         * @description Admin only. Adds a claimable service category to the catalogue.
+         */
         post: operations["createServiceType"];
         delete?: never;
         options?: never;
@@ -60,9 +66,13 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
+        /** List insurance contracts */
         get: operations["listContracts"];
         put?: never;
-        /** @description Admin only. */
+        /**
+         * Create a contract
+         * @description Admin only.
+         */
         post: operations["createContract"];
         delete?: never;
         options?: never;
@@ -77,9 +87,13 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
+        /** List coverage plans */
         get: operations["listPlans"];
         put?: never;
-        /** @description Admin only. */
+        /**
+         * Create a coverage plan
+         * @description Admin only.
+         */
         post: operations["createPlan"];
         delete?: never;
         options?: never;
@@ -94,10 +108,16 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** @description Full version history, newest effective_from first. */
+        /**
+         * List coverage rules and their versions
+         * @description Full version history, newest effective_from first.
+         */
         get: operations["listCoverageRules"];
         put?: never;
-        /** @description Admin only. THE config-driven policy change: atomically closes the previous open version for (plan, service type) — clamped on same-day re-publish — inserts the new version, and records a config_change audit entry. Benefits change with no code deploy. */
+        /**
+         * Publish a new coverage-rule version
+         * @description Admin only. THE config-driven policy change: atomically closes the previous open version for (plan, service type) — clamped on same-day re-publish — inserts the new version, and records a config_change audit entry. Benefits change with no code deploy.
+         */
         post: operations["createCoverageRule"];
         delete?: never;
         options?: never;
@@ -112,10 +132,16 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** @description Staff (admin, reviewer). */
+        /**
+         * Search and list employees
+         * @description Staff (admin, reviewer).
+         */
         get: operations["listEmployees"];
         put?: never;
-        /** @description Admin only. */
+        /**
+         * Add an employee
+         * @description Admin only.
+         */
         post: operations["createEmployee"];
         delete?: never;
         options?: never;
@@ -130,14 +156,20 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** @description Staff, or the employee's own linked account. */
+        /**
+         * Get one employee
+         * @description Staff, or the employee's own linked account.
+         */
         get: operations["getEmployee"];
         put?: never;
         post?: never;
         delete?: never;
         options?: never;
         head?: never;
-        /** @description Admin only. Partial update. */
+        /**
+         * Update an employee
+         * @description Admin only. Partial update.
+         */
         patch: operations["updateEmployee"];
         trace?: never;
     };
@@ -148,10 +180,16 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** @description Staff or self. */
+        /**
+         * List an employee’s dependents
+         * @description Staff or self.
+         */
         get: operations["listDependents"];
         put?: never;
-        /** @description Admin only. */
+        /**
+         * Add a dependent
+         * @description Admin only.
+         */
         post: operations["createDependent"];
         delete?: never;
         options?: never;
@@ -166,7 +204,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** @description Staff or self. One entry per service type with an active rule under the employee's plan; empty when no plan is assigned. */
+        /**
+         * Remaining annual caps per service type
+         * @description Staff or self. One entry per service type with an active rule under the employee's plan; empty when no plan is assigned.
+         */
         get: operations["remainingCaps"];
         put?: never;
         post?: never;
@@ -183,10 +224,16 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** @description Employees see only their own claims; staff and auditors see all. */
+        /**
+         * List claims visible to the caller
+         * @description Employees see only their own claims; staff and auditors see all.
+         */
         get: operations["listClaims"];
         put?: never;
-        /** @description Employee (self) or admin (any employee). Creates a draft. */
+        /**
+         * Create a claim as a draft
+         * @description Employee (self) or admin (any employee). Creates a draft.
+         */
         post: operations["createClaim"];
         delete?: never;
         options?: never;
@@ -201,7 +248,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** @description Owner, staff, or auditor. */
+        /**
+         * Get one claim
+         * @description Owner, staff, or auditor.
+         */
         get: operations["getClaim"];
         put?: never;
         post?: never;
@@ -218,7 +268,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** @description Audit trail of one claim, newest first. */
+        /**
+         * Full audit history of a claim
+         * @description Audit trail of one claim, newest first.
+         */
         get: operations["claimHistory"];
         put?: never;
         post?: never;
@@ -235,10 +288,16 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** @description Documents attached to a claim. Visible to anyone who may read the claim. */
+        /**
+         * List a claim’s documents
+         * @description Documents attached to a claim. Visible to anyone who may read the claim.
+         */
         get: operations["listClaimAttachments"];
         put?: never;
-        /** @description Upload one supporting document. Permitted only for the claim's owner (or an admin) and only while the claim is in draft or has been returned for documents — evidence is frozen once a reviewer takes the claim. Accepted types are sniffed from the content, not the declared type: application/pdf, image/jpeg, image/png, image/webp. Maximum 5 MiB. */
+        /**
+         * Upload a document
+         * @description Upload one supporting document. Permitted only for the claim's owner (or an admin) and only while the claim is in draft or has been returned for documents — evidence is frozen once a reviewer takes the claim. Accepted types are sniffed from the content, not the declared type: application/pdf, image/jpeg, image/png, image/webp. Maximum 5 MiB.
+         */
         post: operations["uploadClaimAttachment"];
         delete?: never;
         options?: never;
@@ -253,7 +312,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** @description Download the stored bytes. Always served as an attachment with X-Content-Type-Options: nosniff, so an uploaded document can never be rendered inline in the browser. */
+        /**
+         * Download a document
+         * @description Download the stored bytes. Always served as an attachment with X-Content-Type-Options: nosniff, so an uploaded document can never be rendered inline in the browser.
+         */
         get: operations["downloadClaimAttachment"];
         put?: never;
         post?: never;
@@ -272,7 +334,10 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** @description Owner or admin. draft → submitted. */
+        /**
+         * Submit a draft for review
+         * @description Owner or admin. draft → submitted.
+         */
         post: operations["submitClaim"];
         delete?: never;
         options?: never;
@@ -289,7 +354,10 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** @description Owner or admin. returned_for_docs → submitted. */
+        /**
+         * Resubmit after adding documents
+         * @description Owner or admin. returned_for_docs → submitted.
+         */
         post: operations["resubmitClaim"];
         delete?: never;
         options?: never;
@@ -306,7 +374,10 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** @description Staff. submitted → under_review. */
+        /**
+         * Take a claim into review
+         * @description Staff. submitted → under_review.
+         */
         post: operations["startReview"];
         delete?: never;
         options?: never;
@@ -323,7 +394,10 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** @description Staff. under_review → approved. Prices the claim against the active coverage rule automatically (percent, per-claim cap, remaining annual cap); the response carries coverage_percent_applied and payable_amount. */
+        /**
+         * Approve and price the claim
+         * @description Staff. under_review → approved. Prices the claim against the active coverage rule automatically (percent, per-claim cap, remaining annual cap); the response carries coverage_percent_applied and payable_amount.
+         */
         post: operations["approveClaim"];
         delete?: never;
         options?: never;
@@ -340,7 +414,10 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** @description Staff. under_review → rejected. Reason is mandatory. */
+        /**
+         * Reject with a reason
+         * @description Staff. under_review → rejected. Reason is mandatory.
+         */
         post: operations["rejectClaim"];
         delete?: never;
         options?: never;
@@ -357,7 +434,10 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** @description Staff. under_review → returned_for_docs. Reason is mandatory. */
+        /**
+         * Return for missing documents
+         * @description Staff. under_review → returned_for_docs. Reason is mandatory.
+         */
         post: operations["returnClaimForDocs"];
         delete?: never;
         options?: never;
@@ -374,7 +454,10 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** @description Staff. approved → paid. Records a simulated payment. */
+        /**
+         * Record payment
+         * @description Staff. approved → paid. Records a simulated payment.
+         */
         post: operations["markClaimPaid"];
         delete?: never;
         options?: never;
@@ -391,7 +474,10 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** @description Staff. rejected | paid → closed. */
+        /**
+         * Close the claim
+         * @description Staff. rejected | paid → closed.
+         */
         post: operations["closeClaim"];
         delete?: never;
         options?: never;
@@ -406,7 +492,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** @description Admin or auditor. */
+        /**
+         * Query the audit trail
+         * @description Admin or auditor.
+         */
         get: operations["listAuditLogs"];
         put?: never;
         post?: never;
@@ -423,7 +512,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** @description Admin or auditor. */
+        /**
+         * Dashboard totals
+         * @description Admin or auditor.
+         */
         get: operations["reportSummary"];
         put?: never;
         post?: never;
@@ -440,7 +532,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** @description Admin or auditor. */
+        /**
+         * Spend per employee
+         * @description Admin or auditor.
+         */
         get: operations["reportSpendByEmployee"];
         put?: never;
         post?: never;
@@ -457,7 +552,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** @description Admin or auditor. Names prefer the Persian service-type name. */
+        /**
+         * Spend per service type
+         * @description Admin or auditor. Names prefer the Persian service-type name.
+         */
         get: operations["reportSpendByServiceType"];
         put?: never;
         post?: never;
@@ -474,7 +572,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** @description Admin or auditor. Buckets by Gregorian YYYY-MM of receipt date. */
+        /**
+         * Spend per month
+         * @description Admin or auditor. Buckets by Gregorian YYYY-MM of receipt date.
+         */
         get: operations["reportSpendByMonth"];
         put?: never;
         post?: never;
@@ -491,10 +592,16 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** @description Admin only. */
+        /**
+         * List accounts
+         * @description Admin only.
+         */
         get: operations["listUsers"];
         put?: never;
-        /** @description Admin only. Role must be reviewer, employee, or auditor — admin cannot be created via this endpoint (use seed or make create-admin). */
+        /**
+         * Create an account
+         * @description Admin only. Role must be reviewer, employee, or auditor — admin cannot be created via this endpoint (use seed or make create-admin).
+         */
         post: operations["createUser"];
         delete?: never;
         options?: never;
@@ -515,7 +622,10 @@ export interface paths {
         delete?: never;
         options?: never;
         head?: never;
-        /** @description Admin only. Partial update (role / active / password). Cannot promote to admin or demote the existing admin; password and is_active remain allowed. */
+        /**
+         * Update an account
+         * @description Admin only. Partial update (role / active / password). Cannot promote to admin or demote the existing admin; password and is_active remain allowed.
+         */
         patch: operations["updateUser"];
         trace?: never;
     };
@@ -528,7 +638,10 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** @description Parent-system bulk upsert by personnel_no. API-key auth. */
+        /**
+         * Bulk-sync employees from the parent system
+         * @description Parent-system bulk upsert by personnel_no. API-key auth.
+         */
         post: operations["syncEmployees"];
         delete?: never;
         options?: never;
@@ -543,7 +656,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** @description Minimal claim status view for the parent system. API-key auth. */
+        /**
+         * Look up a claim’s status
+         * @description Minimal claim status view for the parent system. API-key auth.
+         */
         get: operations["integrationClaimStatus"];
         put?: never;
         post?: never;
