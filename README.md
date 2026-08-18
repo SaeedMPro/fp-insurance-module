@@ -51,7 +51,8 @@ and integration key `dev-integration-key` (`X-API-Key`).
 backend/     Go API, OpenAPI, db/init.sql + db/seed.sql
 frontend/    Persian RTL SPA
 e2e/         browser end-to-end suite
-docs/        architecture, ERD, API contract, use cases
+docs/        documentation content (also the source of the docs site)
+website/     Docusaurus site that publishes docs/ to GitHub Pages
 scripts/     run the stack locally without Docker
 docker-compose.yml
 Makefile
@@ -59,8 +60,19 @@ Makefile
 
 ## Docs
 
-- [docs/API-CONTRACT.md](docs/API-CONTRACT.md)
-- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
-- [docs/ERD.md](docs/ERD.md)
-- [docs/USE-CASES.md](docs/USE-CASES.md)
-- Spec: [backend/api/openapi.yaml](backend/api/openapi.yaml)
+Published at **https://SaeedMPro.github.io/fp-insurance-module/** — 23 pages plus
+an API reference generated from the OpenAPI document.
+
+The Markdown in [docs/](docs/) *is* the site's source, so there is one copy of
+every page and it stays readable here on GitHub.
+
+- [Overview](docs/index.md) · [The one idea](docs/start/the-one-idea.md) · [Run it locally](docs/start/run-locally.md)
+- [Architecture](docs/engineering/architecture.md) · [Design decisions](docs/engineering/decisions.md)
+- [Database schema](docs/reference/database.md) · Spec: [backend/api/openapi.yaml](backend/api/openapi.yaml)
+
+Building the site locally:
+
+```bash
+cd website && npm ci && npm start     # dev server
+cd website && npm run build           # production build; fails on broken links
+```

@@ -500,10 +500,42 @@ components:
         status: { $ref: "#/components/schemas/ClaimStatus" }
         payable_amount: { type: number, nullable: true }
 
+tags:
+  - name: Authentication
+    description: Obtain a token and identify the current user.
+  - name: Claims
+    description: Create a claim and read it back, including its audit history.
+  - name: Claim workflow
+    description: >
+      Move a claim through its lifecycle. Every transition is checked against an
+      explicit state table and recorded in the audit trail.
+  - name: Claim documents
+    description: >
+      Supporting documents. Accepted only while a claim is a draft or has been
+      returned for documents, so the evidence a reviewer decided on cannot change.
+  - name: Coverage configuration
+    description: >
+      The policy side: contracts, plans, service types, and the versioned coverage
+      rules the pricing engine reads. Changing a benefit happens here, not in code.
+  - name: Employees
+    description: Insured employees, their dependents, and their remaining annual caps.
+  - name: Reports
+    description: Read-only aggregations over committed spend.
+  - name: Audit
+    description: The queryable trail of every state change and configuration change.
+  - name: User administration
+    description: Login accounts and their roles.
+  - name: Parent-system integration
+    description: >
+      System-to-system endpoints for the parent HR system. Authenticated with an
+      API key rather than a user token, and outside the role model.
+
 paths:
   /auth/login:
     post:
       operationId: login
+      tags: [Authentication]
+      summary: Log in and receive a token
       security: []
       requestBody:
         required: true
@@ -521,6 +553,8 @@ paths:
   /auth/me:
     get:
       operationId: me
+      tags: [Authentication]
+      summary: Identify the current user
       responses:
         "200":
           description: The authenticated user.
@@ -532,6 +566,8 @@ paths:
   /service-types:
     get:
       operationId: listServiceTypes
+      tags: [Coverage configuration]
+      summary: List claimable service types
       responses:
         "200":
           description: All service types.
@@ -543,6 +579,8 @@ paths:
         default: { $ref: "#/components/responses/Error" }
     post:
       operationId: createServiceType
+      tags: [Coverage configuration]
+      summary: Add a service type
       description: Admin only. Adds a claimable service category to the catalogue.
       requestBody:
         required: true
@@ -560,6 +598,8 @@ paths:
   /contracts:
     get:
       operationId: listContracts
+      tags: [Coverage configuration]
+      summary: List insurance contracts
       responses:
         "200":
           description: All insurance contracts.
@@ -571,6 +611,8 @@ paths:
         default: { $ref: "#/components/responses/Error" }
     post:
       operationId: createContract
+      tags: [Coverage configuration]
+      summary: Create a contract
       description: Admin only.
       requestBody:
         required: true
@@ -588,6 +630,8 @@ paths:
   /plans:
     get:
       operationId: listPlans
+      tags: [Coverage configuration]
+      summary: List coverage plans
       parameters:
         - name: contract_id
           in: query
@@ -603,6 +647,8 @@ paths:
         default: { $ref: "#/components/responses/Error" }
     post:
       operationId: createPlan
+      tags: [Coverage configuration]
+      summary: Create a coverage plan
       description: Admin only.
       requestBody:
         required: true
@@ -620,6 +666,8 @@ paths:
   /coverage-rules:
     get:
       operationId: listCoverageRules
+      tags: [Coverage configuration]
+      summary: List coverage rules and their versions
       description: Full version history, newest effective_from first.
       parameters:
         - name: plan_id
@@ -639,6 +687,8 @@ paths:
         default: { $ref: "#/components/responses/Error" }
     post:
       operationId: createCoverageRule
+      tags: [Coverage configuration]
+      summary: Publish a new coverage-rule version
       description: >
         Admin only. THE config-driven policy change: atomically closes the
         previous open version for (plan, service type) — clamped on same-day
@@ -660,6 +710,8 @@ paths:
   /employees:
     get:
       operationId: listEmployees
+      tags: [Employees]
+      summary: Search and list employees
       description: Staff (admin, reviewer).
       parameters:
         - name: q
@@ -677,6 +729,8 @@ paths:
         default: { $ref: "#/components/responses/Error" }
     post:
       operationId: createEmployee
+      tags: [Employees]
+      summary: Add an employee
       description: Admin only.
       requestBody:
         required: true
@@ -694,6 +748,8 @@ paths:
   /employees/{id}:
     get:
       operationId: getEmployee
+      tags: [Employees]
+      summary: Get one employee
       description: Staff, or the employee's own linked account.
       parameters: [{ $ref: "#/components/parameters/ClaimID" }]
       responses:
@@ -705,6 +761,8 @@ paths:
         default: { $ref: "#/components/responses/Error" }
     patch:
       operationId: updateEmployee
+      tags: [Employees]
+      summary: Update an employee
       description: Admin only. Partial update.
       parameters: [{ $ref: "#/components/parameters/ClaimID" }]
       requestBody:
@@ -723,6 +781,8 @@ paths:
   /employees/{id}/dependents:
     get:
       operationId: listDependents
+      tags: [Employees]
+      summary: List an employee’s dependents
       description: Staff or self.
       parameters: [{ $ref: "#/components/parameters/ClaimID" }]
       responses:
@@ -736,6 +796,8 @@ paths:
         default: { $ref: "#/components/responses/Error" }
     post:
       operationId: createDependent
+      tags: [Employees]
+      summary: Add a dependent
       description: Admin only.
       parameters: [{ $ref: "#/components/parameters/ClaimID" }]
       requestBody:
@@ -754,6 +816,8 @@ paths:
   /employees/{id}/remaining-caps:
     get:
       operationId: remainingCaps
+      tags: [Employees]
+      summary: Remaining annual caps per service type
       description: >
         Staff or self. One entry per service type with an active rule under
         the employee's plan; empty when no plan is assigned.
@@ -771,6 +835,8 @@ paths:
   /claims:
     get:
       operationId: listClaims
+      tags: [Claims]
+      summary: List claims visible to the caller
       description: Employees see only their own claims; staff and auditors see all.
       parameters:
         - name: status
@@ -795,6 +861,8 @@ paths:
         default: { $ref: "#/components/responses/Error" }
     post:
       operationId: createClaim
+      tags: [Claims]
+      summary: Create a claim as a draft
       description: Employee (self) or admin (any employee). Creates a draft.
       requestBody:
         required: true
@@ -812,6 +880,8 @@ paths:
   /claims/{id}:
     get:
       operationId: getClaim
+      tags: [Claims]
+      summary: Get one claim
       description: Owner, staff, or auditor.
       parameters: [{ $ref: "#/components/parameters/ClaimID" }]
       responses:
@@ -825,6 +895,8 @@ paths:
   /claims/{id}/history:
     get:
       operationId: claimHistory
+      tags: [Claims]
+      summary: Full audit history of a claim
       description: Audit trail of one claim, newest first.
       parameters: [{ $ref: "#/components/parameters/ClaimID" }]
       responses:
@@ -840,6 +912,8 @@ paths:
   /claims/{id}/attachments:
     get:
       operationId: listClaimAttachments
+      tags: [Claim documents]
+      summary: List a claim’s documents
       description: Documents attached to a claim. Visible to anyone who may read the claim.
       parameters: [{ $ref: "#/components/parameters/ClaimID" }]
       responses:
@@ -853,6 +927,8 @@ paths:
         default: { $ref: "#/components/responses/Error" }
     post:
       operationId: uploadClaimAttachment
+      tags: [Claim documents]
+      summary: Upload a document
       description: >
         Upload one supporting document. Permitted only for the claim's owner
         (or an admin) and only while the claim is in draft or has been returned
@@ -882,6 +958,8 @@ paths:
   /claims/{id}/attachments/{attachmentID}/download:
     get:
       operationId: downloadClaimAttachment
+      tags: [Claim documents]
+      summary: Download a document
       description: >
         Download the stored bytes. Always served as an attachment with
         X-Content-Type-Options: nosniff, so an uploaded document can never be
@@ -903,6 +981,8 @@ paths:
   /claims/{id}/submit:
     post:
       operationId: submitClaim
+      tags: [Claim workflow]
+      summary: Submit a draft for review
       description: "Owner or admin. draft → submitted."
       parameters: [{ $ref: "#/components/parameters/ClaimID" }]
       responses:
@@ -916,6 +996,8 @@ paths:
   /claims/{id}/resubmit:
     post:
       operationId: resubmitClaim
+      tags: [Claim workflow]
+      summary: Resubmit after adding documents
       description: "Owner or admin. returned_for_docs → submitted."
       parameters: [{ $ref: "#/components/parameters/ClaimID" }]
       responses:
@@ -929,6 +1011,8 @@ paths:
   /claims/{id}/start-review:
     post:
       operationId: startReview
+      tags: [Claim workflow]
+      summary: Take a claim into review
       description: "Staff. submitted → under_review."
       parameters: [{ $ref: "#/components/parameters/ClaimID" }]
       responses:
@@ -942,6 +1026,8 @@ paths:
   /claims/{id}/approve:
     post:
       operationId: approveClaim
+      tags: [Claim workflow]
+      summary: Approve and price the claim
       description: >
         Staff. under_review → approved. Prices the claim against the active
         coverage rule automatically (percent, per-claim cap, remaining annual
@@ -958,6 +1044,8 @@ paths:
   /claims/{id}/reject:
     post:
       operationId: rejectClaim
+      tags: [Claim workflow]
+      summary: Reject with a reason
       description: "Staff. under_review → rejected. Reason is mandatory."
       parameters: [{ $ref: "#/components/parameters/ClaimID" }]
       requestBody:
@@ -976,6 +1064,8 @@ paths:
   /claims/{id}/return-for-docs:
     post:
       operationId: returnClaimForDocs
+      tags: [Claim workflow]
+      summary: Return for missing documents
       description: "Staff. under_review → returned_for_docs. Reason is mandatory."
       parameters: [{ $ref: "#/components/parameters/ClaimID" }]
       requestBody:
@@ -994,6 +1084,8 @@ paths:
   /claims/{id}/mark-paid:
     post:
       operationId: markClaimPaid
+      tags: [Claim workflow]
+      summary: Record payment
       description: "Staff. approved → paid. Records a simulated payment."
       parameters: [{ $ref: "#/components/parameters/ClaimID" }]
       responses:
@@ -1007,6 +1099,8 @@ paths:
   /claims/{id}/close:
     post:
       operationId: closeClaim
+      tags: [Claim workflow]
+      summary: Close the claim
       description: "Staff. rejected | paid → closed."
       parameters: [{ $ref: "#/components/parameters/ClaimID" }]
       responses:
@@ -1020,6 +1114,8 @@ paths:
   /audit-logs:
     get:
       operationId: listAuditLogs
+      tags: [Audit]
+      summary: Query the audit trail
       description: Admin or auditor.
       parameters:
         - name: entity_type
@@ -1049,6 +1145,8 @@ paths:
   /reports/summary:
     get:
       operationId: reportSummary
+      tags: [Reports]
+      summary: Dashboard totals
       description: Admin or auditor.
       parameters:
         - $ref: "#/components/parameters/FromDate"
@@ -1064,6 +1162,8 @@ paths:
   /reports/spend-by-employee:
     get:
       operationId: reportSpendByEmployee
+      tags: [Reports]
+      summary: Spend per employee
       description: Admin or auditor.
       parameters:
         - $ref: "#/components/parameters/FromDate"
@@ -1081,6 +1181,8 @@ paths:
   /reports/spend-by-service-type:
     get:
       operationId: reportSpendByServiceType
+      tags: [Reports]
+      summary: Spend per service type
       description: Admin or auditor. Names prefer the Persian service-type name.
       parameters:
         - $ref: "#/components/parameters/FromDate"
@@ -1098,6 +1200,8 @@ paths:
   /reports/spend-by-month:
     get:
       operationId: reportSpendByMonth
+      tags: [Reports]
+      summary: Spend per month
       description: Admin or auditor. Buckets by Gregorian YYYY-MM of receipt date.
       parameters:
         - $ref: "#/components/parameters/FromDate"
@@ -1115,6 +1219,8 @@ paths:
   /admin/users:
     get:
       operationId: listUsers
+      tags: [User administration]
+      summary: List accounts
       description: Admin only.
       responses:
         "200":
@@ -1127,6 +1233,8 @@ paths:
         default: { $ref: "#/components/responses/Error" }
     post:
       operationId: createUser
+      tags: [User administration]
+      summary: Create an account
       description: >
         Admin only. Role must be reviewer, employee, or auditor — admin cannot
         be created via this endpoint (use seed or make create-admin).
@@ -1146,6 +1254,8 @@ paths:
   /admin/users/{id}:
     patch:
       operationId: updateUser
+      tags: [User administration]
+      summary: Update an account
       description: >
         Admin only. Partial update (role / active / password). Cannot promote to
         admin or demote the existing admin; password and is_active remain allowed.
@@ -1166,6 +1276,8 @@ paths:
   /integration/employees/sync:
     post:
       operationId: syncEmployees
+      tags: [Parent-system integration]
+      summary: Bulk-sync employees from the parent system
       description: Parent-system bulk upsert by personnel_no. API-key auth.
       security:
         - apiKey: []
@@ -1185,6 +1297,8 @@ paths:
   /integration/claims/{id}/status:
     get:
       operationId: integrationClaimStatus
+      tags: [Parent-system integration]
+      summary: Look up a claim’s status
       description: Minimal claim status view for the parent system. API-key auth.
       security:
         - apiKey: []

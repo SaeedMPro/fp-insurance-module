@@ -1,4 +1,4 @@
-# Entity-Relationship Diagram — Supplementary Insurance Module
+# Database schema
 
 Derived directly from `backend/db/init.sql` (schema) and
 `backend/db/seed.sql` (reference data).

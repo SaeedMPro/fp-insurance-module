@@ -1,15 +1,8 @@
-# Architecture — Supplementary Insurance Module
+# Architecture
 
-**Project**: Design and Implementation of a Supplementary Insurance Module
-(طراحی و پیاده‌سازی ماژول بیمه تکمیلی) — bachelor's capstone project,
-Bu-Ali Sina University.
-
-This document describes the system as implemented in this repository: a
-Go REST API backend (`backend/`), a React + TypeScript + Vite frontend
-(`frontend/`), and a PostgreSQL database whose schema is owned by
-`backend/db/init.sql`. It is grounded entirely in the code and configuration
-present in the repository; see `docs/API-CONTRACT.md` for the complete
-endpoint list and `docs/ERD.md` for the data model.
+How the code is organised and why. Grounded in the repository as it stands —
+see the [API reference](/api) for the endpoint surface and
+[Database schema](../reference/database) for the data model.
 
 ## 1. Design goal
 
@@ -172,7 +165,7 @@ active row in `integration_api_keys`.
 
 Handlers are thin by design: decode a DTO, call one service method, encode the
 result. `respond.go` maps `domain.Kind` to the HTTP status, so the status
-codes documented in `docs/API-CONTRACT.md` are produced in one place rather
+codes documented in the [API reference](/api) are produced in one place rather
 than chosen per handler.
 
 Two things keep the API honest against `backend/api/openapi.yaml`:

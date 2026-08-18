@@ -211,6 +211,51 @@ jobs:
           path: e2e/artifacts/
           if-no-files-found: ignore
           retention-days: 7
+  docs:
+    name: Documentation site
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: website/package-lock.json
+      - name: Build the site
+        # `npm run build` regenerates the API reference from
+        # backend/api/openapi.yaml first, so the published reference can never
+        # describe an older spec than the repository holds.
+        #
+        # The build is configured with onBrokenLinks: 'throw', so a broken
+        # internal link fails this job. That is the failure mode documentation
+        # sites actually have, and a link check that only warns is one nobody
+        # reads. It runs on pull requests too — only the deploy below is gated
+        # on main.
+        working-directory: website
+        run: |
+          npm ci
+          npm run build
+      - name: Upload the site as a Pages artifact
+        if: github.ref == 'refs/heads/main'
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: website/build
+
+  deploy-docs:
+    name: Publish to GitHub Pages
+    runs-on: ubuntu-latest
+    needs: docs
+    if: github.ref == 'refs/heads/main'
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - id: deploy
+        uses: actions/deploy-pages@v4
+
   docker:
     name: Docker images build
     runs-on: ubuntu-latest

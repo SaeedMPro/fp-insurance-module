@@ -24,3 +24,10 @@ dist/
 
 # e2e run output (screenshots + the generated sample upload)
 e2e/artifacts/
+
+# Docusaurus documentation site
+website/node_modules/
+website/build/
+website/.docusaurus/
+# Generated from backend/api/openapi.yaml by `npm run gen-api` — a build artifact
+website/api-generated/
