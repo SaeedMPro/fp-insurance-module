@@ -12,7 +12,7 @@ import (
 )
 
 // Golden pricing tests. These exist to freeze the engine's arithmetic across
-// refactors — in particular the float64 → integer-Rial migration (ADR-0003).
+// refactors — in particular the float64 → integer-Rial migration.
 // The table below is deliberately exhaustive about the interesting boundaries
 // (fractional percentages, .5 rounding, cap collisions, exhausted caps); the
 // expected values were captured from the pre-migration implementation, so any

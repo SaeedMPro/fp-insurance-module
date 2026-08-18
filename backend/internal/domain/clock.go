@@ -25,7 +25,7 @@ func (c FixedClock) Now() time.Time { return c.T }
 // businessLocationName is the organisation's civil timezone. Every *day
 // boundary* decision (contract-year windows, waiting-period eligibility,
 // effective dates) is evaluated here rather than in the host's local zone, so
-// pricing does not depend on where the server happens to run (ADR-0004).
+// pricing does not depend on where the server happens to run.
 const businessLocationName = "Asia/Tehran"
 
 var (

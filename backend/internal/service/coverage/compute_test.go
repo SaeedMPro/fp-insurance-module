@@ -8,7 +8,7 @@ import (
 	"insurance-module/internal/domain"
 )
 
-// f builds an optional cap; caps are whole rial (ADR-0003).
+// f builds an optional cap; caps are whole rial.
 func f(v domain.Rial) *domain.Rial { return &v }
 
 // TestCompute_FiveServiceTypes exercises Compute against the five seeded

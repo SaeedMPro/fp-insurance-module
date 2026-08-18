@@ -7,7 +7,7 @@ import (
 	"insurance-module/internal/domain"
 )
 
-// These tests pin the day-boundary behaviour that ADR-0004 exists for: business
+// These tests pin the day-boundary behaviour the pricing rules depend on: business
 // days are measured in Asia/Tehran, so a claim prices the same no matter which
 // timezone the server runs in. Before the fix, contractYearWindow built its
 // window in UTC and waiting periods compared raw instants, meaning a receipt

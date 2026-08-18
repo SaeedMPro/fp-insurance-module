@@ -5,7 +5,7 @@ package api
 
 import _ "embed"
 
-// OpenAPIYAML is the source-of-truth contract (ADR-0002).
+// OpenAPIYAML is the source-of-truth contract.
 //
 //go:embed openapi.yaml
 var OpenAPIYAML []byte

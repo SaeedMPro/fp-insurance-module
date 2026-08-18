@@ -1,7 +1,7 @@
 // Wire types for the REST API.
 //
 // These are NOT hand-maintained: every alias below re-exports a schema that is
-// GENERATED from backend/api/openapi.yaml into schema.d.ts (ADR-0002). The spec
+// GENERATED from backend/api/openapi.yaml into schema.d.ts. The spec
 // is the single source of truth — to change a field, edit the spec and run
 // `npm run gen:api` (CI fails if the checked-in schema is stale).
 //

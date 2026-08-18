@@ -3,7 +3,7 @@
 -- Apply on an empty DB: `make seed` or `psql … -f backend/db/seed.sql`
 -- (Not applied automatically on API boot — only db/init.sql is.)
 --
--- Amounts are whole rial (ADR-0003). Dates are Gregorian; contract year
+-- Amounts are whole rial. Dates are Gregorian; contract year
 -- ۱۴۰۴–۱۴۰۵ spans 2025-03-21 → 2027-03-20. Most demo claims sit in ۱۴۰۵ so the
 -- Reports page default range (current Jalali year → today) is populated.
 --

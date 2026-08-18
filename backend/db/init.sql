@@ -115,8 +115,8 @@ CREATE INDEX idx_claims_created_by ON claims (created_by);
 CREATE INDEX idx_claims_annual_cap_lookup
     ON claims (employee_id, service_type_id, plan_id, status, receipt_date);
 
-COMMENT ON COLUMN claims.requested_amount IS 'Whole rial (ADR-0003)';
-COMMENT ON COLUMN claims.payable_amount   IS 'Whole rial, computed by the coverage engine (ADR-0003)';
+COMMENT ON COLUMN claims.requested_amount IS 'Whole rial';
+COMMENT ON COLUMN claims.payable_amount   IS 'Whole rial, computed by the coverage engine';
 COMMENT ON COLUMN coverage_rules.per_claim_cap IS 'Whole rial; NULL = no per-claim cap';
 COMMENT ON COLUMN coverage_rules.annual_cap    IS 'Whole rial; NULL = no annual cap';
 
@@ -136,7 +136,7 @@ CREATE TABLE payments (
     status              VARCHAR(20) NOT NULL DEFAULT 'simulated' CHECK (status IN ('simulated','completed')),
     paid_at             TIMESTAMPTZ NOT NULL DEFAULT now()
 );
-COMMENT ON COLUMN payments.amount IS 'Whole rial (ADR-0003)';
+COMMENT ON COLUMN payments.amount IS 'Whole rial';
 
 CREATE TABLE audit_logs (
     id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),

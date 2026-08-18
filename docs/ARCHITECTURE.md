@@ -9,8 +9,7 @@ Go REST API backend (`backend/`), a React + TypeScript + Vite frontend
 (`frontend/`), and a PostgreSQL database whose schema is owned by
 `backend/db/init.sql`. It is grounded entirely in the code and configuration
 present in the repository; see `docs/API-CONTRACT.md` for the complete
-endpoint list, `docs/ERD.md` for the data model, and `docs/adr/` for the
-decisions that shaped the structure below.
+endpoint list and `docs/ERD.md` for the data model.
 
 ## 1. Design goal
 
@@ -31,7 +30,7 @@ The backend (`backend/`, Go module `insurance-module`) is a layered
 application: **transport → service → storage**, with `domain` at the centre
 and `platform` off to the side. The dependency rule is one-directional and is
 what makes the rest of the design hold together — `domain` imports nothing of
-ours, and no layer below `transport/http` knows that HTTP exists (ADR-0001).
+ours, and no layer below `transport/http` knows that HTTP exists.
 
 ```
 cmd/api              entrypoint: load config, open DB, apply schema, wire, serve
@@ -66,12 +65,12 @@ inconsistently across the codebase:
   the system as a float, and there is exactly one rounding decision — half-up
   to the whole rial, inside `Percent.ApplyTo` — so caps are always compared
   against an already-whole amount and no fractional value can escape into a
-  payment or an annual-cap total (ADR-0003).
+  payment or an annual-cap total.
 - **Time** (`clock.go`). Services take a `domain.Clock` rather than calling
   `time.Now()`, so waiting periods and contract-year windows are deterministic
   under test. `BusinessDay` normalises an instant to a civil day in
   `Asia/Tehran`, so a receipt dated the first eligible day qualifies no matter
-  what timezone the server runs in (ADR-0004).
+  what timezone the server runs in.
 - **Errors** (`errors.go`). A `domain.Error` carries a `Kind`
   (`NotFound`, `Forbidden`, `Conflict`, `Validation`, `Unprocessable`, …).
   Services return kinded errors; the transport layer maps kind → HTTP status
@@ -176,8 +175,7 @@ result. `respond.go` maps `domain.Kind` to the HTTP status, so the status
 codes documented in `docs/API-CONTRACT.md` are produced in one place rather
 than chosen per handler.
 
-Two things keep the API honest against `backend/api/openapi.yaml`
-(ADR-0002):
+Two things keep the API honest against `backend/api/openapi.yaml`:
 
 - `Routes()` enumerates every `METHOD /path` the router serves, and
   `TestOpenAPISpecCoversEveryRoute` fails if the spec and the router disagree
@@ -287,7 +285,7 @@ on `401`.
 
 **Types are generated, not hand-written.** `frontend/src/api/schema.d.ts` is
 produced from the OpenAPI document by `npm run gen:api`; `src/api/types.ts`
-only re-exports friendly aliases from it (ADR-0002). CI fails if the committed
+only re-exports friendly aliases from it. CI fails if the committed
 output is stale.
 
 **Structure.**

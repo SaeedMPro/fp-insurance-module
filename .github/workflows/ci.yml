@@ -2,10 +2,18 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches:
+      - main
+    paths-ignore:
+      - 'docs/**'
+      - '*.md'
   pull_request:
-
-
+    branches:
+      - main
+    paths-ignore:
+      - 'docs/**'
+      - '*.md'
+ 
 jobs:
   backend:
     name: Backend (lint, test)
@@ -73,7 +81,7 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
       - run: npm ci
       - name: API types are in sync with the OpenAPI spec
-        # The spec (backend/api/openapi.yaml) is the source of truth — ADR-0002.
+        # The spec (backend/api/openapi.yaml) is the source of truth.
         # Regenerate and fail if the checked-in schema drifted.
         run: |
           npm run gen:api

@@ -4,7 +4,7 @@ import "math"
 
 // Rial is a whole number of Iranian rials. Money never travels through this
 // system as a float: binary floating point cannot represent decimal amounts
-// exactly, and the rial has no fractional unit in everyday use (ADR-0003).
+// exactly, and the rial has no fractional unit in everyday use.
 //
 // Range: int64 covers ±9.2×10^18 rial, five orders of magnitude beyond the
 // schema's own NUMERIC(14,0) ceiling, so overflow is not a practical concern.
@@ -28,7 +28,7 @@ func PercentFromFloat(f float64) Percent {
 func (p Percent) Float() float64 { return float64(p) / 100 }
 
 // ApplyTo returns p percent of amount, rounded half-up to the whole rial.
-// This is the ONLY place a monetary rounding decision is made (ADR-0003);
+// This is the ONLY place a monetary rounding decision is made;
 // every other calculation is exact integer arithmetic.
 func (p Percent) ApplyTo(amount Rial) Rial {
 	if amount <= 0 || p <= 0 {

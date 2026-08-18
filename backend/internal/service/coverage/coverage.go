@@ -138,7 +138,7 @@ func (s *Service) Calculate(ctx context.Context, in CalcInput) (*CalcResult, err
 
 	if rule.WaitingPeriodDays > 0 {
 		// Compare civil days in the business timezone: a receipt dated the day
-		// eligibility starts must qualify regardless of host zone (ADR-0004).
+		// eligibility starts must qualify regardless of host zone.
 		eligibleFrom := domain.BusinessDay(employee.HireDate).AddDate(0, 0, rule.WaitingPeriodDays)
 		if domain.BusinessDay(in.ReceiptDate).Before(eligibleFrom) {
 			return nil, ErrWaitingPeriod
@@ -159,7 +159,7 @@ func (s *Service) Calculate(ctx context.Context, in CalcInput) (*CalcResult, err
 // amount, and how much annual cap is already used, it returns the payable
 // amount and which cap (if any) bound it.
 //
-// All arithmetic is exact integer rial (ADR-0003); the single rounding
+// All arithmetic is exact integer rial; the single rounding
 // decision — half-up to the whole rial — happens inside Percent.ApplyTo, so
 // caps are compared against an already-whole amount and no fractional value
 // can escape into a payment or an annual-cap total.
@@ -263,7 +263,7 @@ func (s *Service) usedAnnualAmount(ctx context.Context, employeeID, serviceTypeI
 
 // contractYearWindow is the 12-month window anchored on the rule's
 // effective_from anniversary that contains now, evaluated in the business
-// timezone so the window does not shift with the host's zone (ADR-0004).
+// timezone so the window does not shift with the host's zone.
 func contractYearWindow(effectiveFrom, now time.Time) (time.Time, time.Time) {
 	loc := domain.BusinessLocation()
 	anchor := effectiveFrom.In(loc)
