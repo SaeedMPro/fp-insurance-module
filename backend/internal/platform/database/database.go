@@ -21,7 +21,11 @@ func InitSchema(ctx context.Context, databaseURL, initPath string) error {
 	if err != nil {
 		return fmt.Errorf("open db: %w", err)
 	}
-	defer func() { _ = db.Close() }()
+	defer func() {
+		if err := db.Close(); err != nil {
+			fmt.Fprintf(os.Stderr, "close db: %v\n", err)
+		}
+	}()
 
 	exists, err := tableExists(ctx, db, "claims")
 	if err != nil {

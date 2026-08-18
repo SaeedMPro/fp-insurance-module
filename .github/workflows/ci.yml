@@ -5,6 +5,7 @@ on:
     branches: [main]
   pull_request:
 
+
 jobs:
   backend:
     name: Backend (lint, test)
@@ -43,12 +44,19 @@ jobs:
           psql -h localhost -U insurance -d insurance -v ON_ERROR_STOP=1 -f db/init.sql
           psql -h localhost -U insurance -d insurance -v ON_ERROR_STOP=1 -f db/seed.sql
       - name: Test (unit + integration + OpenAPI conformance)
-        # Includes TestOpenAPIConformance / TestOpenAPISpecCoversEveryRoute, which
-        # validate live responses against backend/api/openapi.yaml and fail if any
-        # served route is undocumented (ADR-0002).
         env:
           TEST_DATABASE_URL: postgres://insurance:insurance@localhost:5432/insurance?sslmode=disable
-        run: go test ./... -count=1
+        run: |
+          set -o pipefail
+          go test ./... -count=1 -v 2>&1 | tee /tmp/gotest.log
+      - name: Integration tests actually ran (not silently skipped)
+        run: |
+          if grep -q "no test database available" /tmp/gotest.log; then
+            echo "::error::Integration tests were SKIPPED — TEST_DATABASE_URL was unreachable."
+            grep -m 5 "no test database available" /tmp/gotest.log
+            exit 1
+          fi
+          echo "Integration tests ran ($(grep -c '^--- PASS' /tmp/gotest.log) test cases passed)."
 
   frontend:
     name: Frontend (typecheck, lint, build)
@@ -75,7 +83,126 @@ jobs:
           }
       - run: npm run lint
       - run: npm run build   # tsc -b && vite build
+  e2e:
+    name: End-to-end (browser)
+    runs-on: ubuntu-latest
+    # A hung browser wait would otherwise sit on the runner for GitHub's 6-hour
+    # default; the suite itself takes about two minutes.
+    timeout-minutes: 20
+    # Gated on the cheap jobs: a compile error or a stale OpenAPI schema should
+    # fail as itself, not as a confusing browser timeout ten minutes later.
+    needs: [backend, frontend]
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: insurance
+          POSTGRES_PASSWORD: insurance
+          POSTGRES_DB: insurance
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U insurance -d insurance"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      DATABASE_URL: postgres://insurance:insurance@localhost:5432/insurance?sslmode=disable
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: backend/go.mod
+          cache-dependency-path: backend/go.sum
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            frontend/package-lock.json
+            e2e/package-lock.json
 
+      - name: Install psql client
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+      - name: Initialize database
+        env:
+          PGPASSWORD: insurance
+        run: |
+          psql -h localhost -U insurance -d insurance -v ON_ERROR_STOP=1 -f backend/db/init.sql
+          psql -h localhost -U insurance -d insurance -v ON_ERROR_STOP=1 -f backend/db/seed.sql
+
+      - name: Resolve the Chrome binary
+        # The runner image ships Chrome, but the name has moved between
+        # google-chrome and google-chrome-stable; pick whichever is present
+        # rather than hardcoding one and failing obscurely inside puppeteer.
+        run: |
+          for c in google-chrome-stable google-chrome chromium-browser chromium; do
+            if command -v "$c" >/dev/null; then
+              echo "CHROME_PATH=$(command -v "$c")" >> "$GITHUB_ENV"
+              "$c" --version
+              exit 0
+            fi
+          done
+          echo "::error::no Chrome/Chromium binary found on the runner"; exit 1
+
+      - name: Start the API
+        # ATTACHMENTS_DIR matters here: the suite uploads a document, so the
+        # blob store has to be writable. The schema is already applied above,
+        # so the API's own init is a no-op.
+        working-directory: backend
+        env:
+          HTTP_PORT: "8080"
+          JWT_SECRET: ci-only-secret-not-used-anywhere-else
+          ATTACHMENTS_DIR: /tmp/ci-attachments
+        run: |
+          mkdir -p "$ATTACHMENTS_DIR"
+          # Build then run, rather than `go run`: `go run` stays alive as a
+          # parent wrapper, so the pid it reports is not the server's and the
+          # compile time lands inside the readiness wait instead of before it.
+          go build -o /tmp/api ./cmd/api
+          /tmp/api > /tmp/api.log 2>&1 &
+          echo $! > /tmp/api.pid
+          for _ in $(seq 1 60); do
+            curl -sf -m 2 http://localhost:8080/healthz >/dev/null && break
+            sleep 1
+          done
+          curl -sf -m 2 http://localhost:8080/healthz || { echo "::error::API did not start"; tail -50 /tmp/api.log; exit 1; }
+
+      - name: Start the frontend
+        # The dev server, not a static build: its /api proxy is what makes the
+        # SPA same-origin, and it is what the suite is written against locally.
+        working-directory: frontend
+        env:
+          API_PROXY_TARGET: http://localhost:8080
+        run: |
+          npm ci
+          npm run dev -- --port 5173 --strictPort > /tmp/web.log 2>&1 &
+          echo $! > /tmp/web.pid
+          for _ in $(seq 1 60); do
+            curl -sf -m 2 http://localhost:5173/ >/dev/null && break
+            sleep 1
+          done
+          curl -sf -m 2 http://localhost:5173/ || { echo "::error::frontend did not start"; tail -50 /tmp/web.log; exit 1; }
+
+      - name: Run the end-to-end suite
+        working-directory: e2e
+        env:
+          E2E_BASE_URL: http://localhost:5173
+          E2E_API_URL: http://localhost:8080/api/v1
+        run: |
+          npm ci
+          node e2e.mjs
+
+      - name: Server logs on failure
+        if: failure()
+        run: |
+          echo "----- API -----";      tail -100 /tmp/api.log || true
+          echo "----- frontend -----"; tail -50  /tmp/web.log || true
+      - name: Upload failure screenshots
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-screenshots
+          path: e2e/artifacts/
+          if-no-files-found: ignore
+          retention-days: 7
   docker:
     name: Docker images build
     runs-on: ubuntu-latest
